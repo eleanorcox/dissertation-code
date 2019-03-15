@@ -7,7 +7,7 @@ import maya.cmds as cmds
 import maya.mel as mel
 import json
 
-pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
+#pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
@@ -20,6 +20,7 @@ global proc string myServer(string $str){
 
 mel.eval(melproc)
 
+# Names of joints stored here for easy access
 class Character():
     def __init__(self):
         self.root = getRoot()
@@ -39,34 +40,38 @@ def myServer(str):
 
 def doPut(request):
     joint_pos, joint_ang = parsePut(request)
-    #moveJoints(character, joint_pos, joint_ang)
-    pass
+    moveJoints(joint_pos, joint_ang)
 
-# Assuming Y_Out is in full (i.e. 311 output array)
 def parsePut(request):
-    Y_out = request["Y_Output"]
-    p = Y_out.replace('[', '')
-    q = p.replace(']', '')
-    r = q.split()
-
+    pos = request["JointPos"]
+    pos = pos.replace('[', '')
+    pos = pos.replace(']', '')
+    pos = pos.replace(',', '')
+    pos = pos.split()
     joint_pos = []
+
+    ang = request["JointAngles"]
+    ang = ang.replace('[', '')
+    ang = ang.replace(']', '')
+    ang = ang.replace(',', '')
+    ang = ang.split()
     joint_ang = []
 
-    # Hard coded numbers. Thinking of changing this so only the needed info is sent to maya
-    # i.e. not all of Y_Out but only the joint positions and angles
-    for i in range(24, 118):
-        joint_pos.append(r[i])
-    for i in range(211, 304):
-        joint_ang.append(r[i])
+    for i in range(len(pos)):
+        joint_pos.append(float(pos[i]))
+    for j in range(len(ang)):
+        joint_ang.append(float(ang[j]))
 
-    print(joint_pos[0])
-    print(len(joint_pos))
-    print(joint_ang[0])
-    print(len(joint_ang))
     return joint_pos, joint_ang
 
-def moveJoints(character, joint_pos, joint_ang):
-    pass
+def moveJoints(joint_pos, joint_ang):
+    global character
+
+    ### PROBLEM: This moves the joints but the skeleton moves weirdly.
+    ### Check whether I am using the wrong outputs, whether need the angles
+    ### Have set it up so can use angles but not surrently using)
+    for i in range(len(character.joints)):
+        cmds.move(joint_pos[i*3], joint_pos[i*3+1], joint_pos[i*3+2], character.joints[i])
 
 def getJoints(joints, joint):
     children = cmds.listRelatives(joint)
