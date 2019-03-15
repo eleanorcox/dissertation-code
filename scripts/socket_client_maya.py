@@ -13,10 +13,10 @@ print "connecting to %s port %s" % maya_address
 sock.connect(maya_address)
 
 try:
-    req_type = "GET"
+    req_type = "PUT"
     #command = "polyCube -w 1 -h 1 -d 1 -sx 1 -sy 1 -sz 1 -ax 0 1 0 -cuv 4 -ch 1;"
-    command = "testCMD"
-    json_request = json.dumps({"RequestType": req_type, "Command": command})
+    command = "[1 2 3 4 5 6 7 8 9 10]"
+    json_request = json.dumps({"RequestType": req_type, "Y_Output": command})
 
     sock.sendall(json_request)
     # MAYBE better to use send but fix this l8r
