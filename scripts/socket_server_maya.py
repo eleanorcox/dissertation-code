@@ -7,7 +7,7 @@ import maya.cmds as cmds
 import maya.mel as mel
 import json
 
-#pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
+pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
@@ -66,12 +66,16 @@ def parsePut(request):
 
 def moveJoints(joint_pos, joint_ang):
     global character
+    root_xform = getRootXform()
 
-    ### PROBLEM: This moves the joints but the skeleton moves weirdly.
-    ### Check whether I am using the wrong outputs, whether need the angles
-    ### Have set it up so can use angles but not surrently using)
     for i in range(len(character.joints)):
-        cmds.move(joint_pos[i*3], joint_pos[i*3+1], joint_pos[i*3+2], character.joints[i])
+        x_offset = joint_pos[i*3]
+        y_offset = joint_pos[i*3+1]
+        z_offset = joint_pos[i*3+2]
+        x_xform = root_xform[0] + x_offset
+        y_xform = root_xform[1] + y_offset
+        z_xform = root_xform[2] + z_offset
+        cmds.move(x_xform, y_xform, z_xform, character.joints[i], worldSpace=True)
 
 def getJoints(joints, joint):
     children = cmds.listRelatives(joint)
@@ -93,8 +97,35 @@ def getRoot():
             root = parent[0]
         elif parent is None:
             found = True
-
     return root
+
+def getRootXform():
+    ### HARDCODED NAMES
+    left_hip = "JOINT_LHipJoint"
+    right_hip = "JOINT_RHipJoint"
+    left_toe = "JOINT_LeftToeBase"
+    right_toe = "JOINT_RightToeBase"
+
+    left_world_xform = cmds.xform(left_hip, worldSpace=True, query=True, translation=True)
+    right_world_xform = cmds.xform(right_hip, worldSpace=True, query=True, translation=True)
+    hip_world_xform = [0,0,0]
+    for i in range(len(left_world_xform)):
+        hip_world_xform[i] = (left_world_xform[i]+right_world_xform[i]) / 2
+
+    l_toe_world_xform = cmds.xform(left_toe, worldSpace=True, query=True, translation=True)
+    r_toe_world_xform = cmds.xform(right_toe, worldSpace=True, query=True, translation=True)
+    floor_height = 0
+    if l_toe_world_xform[1] < r_toe_world_xform[1]: #LESS THAN as model currently in negative space
+        floor_height = l_toe_world_xform[1]
+    else:
+        floor_height = r_toe_world_xform[1]
+
+    root_x = hip_world_xform[0]
+    root_y = floor_height
+    root_z = hip_world_xform[2]
+
+    return [root_x, root_y, root_z]
+
 
 character = Character()
 #pm.general.commandPort(name=":12345", cl=True)

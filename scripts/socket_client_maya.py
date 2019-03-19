@@ -22,7 +22,7 @@ sock.connect(maya_address)
 """ This deals with reading in string data from a text file. Will not need/
 will need to edit when I am reading directly from the nn because the data
 will already be in the correct format"""
-file_name = "sample_y_train.txt"
+file_name = "denormalised_y.txt"
 print("Reading file '%s'" % file_name)
 f = open(file_name, "r")
 p = f.read()
@@ -36,16 +36,16 @@ for i in range(len(t)):
     t[i] = floated
 
 ### Definitely a nicer way to do this
-trajectory_positions = str(t[0:num_traj])
-trajectory_directions = str(t[12:12+num_traj])
-joint_positions = str(t[24:24+num_joint])
-joint_velocities = str(t[117:117+num_joint])
-joint_angles = str(t[210:210+num_joint])
-root_trans_x_velocity = str(t[303:303+num_root])
-root_trans_z_velocity = str(t[304:304+num_root])
-root_trans_angular_velocity = str(t[305:305+num_root])
-phase_change = str(t[306:306+num_phase])
-foot_contact = str(t[307:307+num_contact])
+root_trans_x_velocity = str(t[0:num_root])
+root_trans_z_velocity = str(t[1:1+num_root])
+root_trans_angular_velocity = str(t[2:2+num_root])
+phase_change = str(t[3:3+num_phase])
+foot_contact = str(t[4:4+num_contact])
+trajectory_positions = str(t[8:8+num_traj])
+trajectory_directions = str(t[20:20+num_traj])
+joint_positions = str(t[32:32+num_joint])
+joint_velocities = str(t[125:125+num_joint])
+joint_angles = str(t[218:218+num_joint])
 
 try:
     req_type = "PUT"
