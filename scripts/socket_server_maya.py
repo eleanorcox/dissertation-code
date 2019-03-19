@@ -46,9 +46,6 @@ def doPut(request):
 
 def parsePut(request):
     pos = request["JointPos"]
-    pos = pos.replace('[', '')
-    pos = pos.replace(']', '')
-    pos = pos.replace(',', '')
     pos = pos.split()
     joint_pos = []
 
@@ -72,11 +69,11 @@ def moveJoints(joint_pos):
 
 def setJointKeyframes():
     for joint in character.joints:
-        cmds.setKeyframe(joint, at="translate")
+        cmds.setKeyframe(joint, attribute="translate")
 
 def updateFrame():
     now = cmds.currentTime(query=True)
-    cmds.currentTime(now + 10)
+    cmds.currentTime(now + 1)
 
 def getJoints(joints, joint):
     children = cmds.listRelatives(joint)
@@ -116,7 +113,7 @@ def getRootXform():
     l_toe_world_xform = cmds.xform(left_toe, worldSpace=True, query=True, translation=True)
     r_toe_world_xform = cmds.xform(right_toe, worldSpace=True, query=True, translation=True)
     floor_height = 0
-    if l_toe_world_xform[1] < r_toe_world_xform[1]: #LESS THAN as model currently in negative space
+    if l_toe_world_xform[1] > r_toe_world_xform[1]:
         floor_height = l_toe_world_xform[1]
     else:
         floor_height = r_toe_world_xform[1]

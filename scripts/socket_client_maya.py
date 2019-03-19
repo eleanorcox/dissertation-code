@@ -1,54 +1,53 @@
 #################################################################
 # Socket client to Maya. Runs in terminal.
 #################################################################
+import numpy as np
 import socket
+import time
 import json
 import sys
 
 num_joint = 93
+num_frames = 300    # ys has 39730 frames total or ~5.5 minutes (at 120fps). I am using a subset.
 
-#This deals with reading in string data from a text file. Will not need/
-#will need to edit when I am reading directly from the nn because the data
-#will already be in the correct format
-def process_file(file_name):
-    print("Reading file '%s'" % file_name)
-    f = open(file_name, "r")
-    y = f.read()
-    y = y.replace('[', '')
-    y = y.replace(']', '')
-    y = y.replace('\n', '')
-    y = y.split()
-    for i in range(len(y)):
-        value = y[i]
-        floated = float(value)
-        y[i] = floated
-    joint_positions = str(y[32:32+num_joint])
-    return joint_positions
+def formatData(array):
+    string = np.array2string(array)
+    string = string.replace('[', '')
+    string = string.replace(']', '')
+    string = string.replace('\n', '')
+    return string
+
+print("Loading in data...")
+full_ys = np.load('denormalised_y_full.npz')
+ys = full_ys['Y']
+
+print("Extracting relevant data...")
+joint_pos_full = np.ndarray(shape=(num_frames, num_joint))
+for i in range(num_frames):
+    y = ys[i]
+    joint_positions = y[32:32+num_joint]
+    joint_pos_full[i] = joint_positions
+
+print("Formatting data...")
+joint_pos_strings = np.ndarray(num_frames, dtype=object)
+for i in range(num_frames):
+    joint_pos_strings[i] = formatData(joint_pos_full[i])
 
 # Create a TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # Connect the socket to the port where Maya is listening
 maya_address = ("localhost", 12345)
-print "connecting to %s port %s" % maya_address
+print "Connecting to %s port %s" % maya_address
 sock.connect(maya_address)
 
-file_name_1 = "denormalised_y_1.txt"
-file_name_2 = "denormalised_y_2.txt"
-joint_positions_1 = process_file(file_name_1)
-joint_positions_2 = process_file(file_name_2)
-
 try:
-    req_type = "PUT"
-    json_request = json.dumps({"RequestType": req_type, "JointPos": joint_positions_1})
-    sock.sendall(json_request)    # MAYBE better to use send but fix this l8r
-    data = sock.recv(4096)
-    print "received %s" % data
-
-    json_request_2 = json.dumps({"RequestType": req_type, "JointPos": joint_positions_2})
-    sock.sendall(json_request_2)
-    data = sock.recv(4096)
-    print "received %s" % data
-
+    for i in range(num_frames):
+        req_type = "PUT"
+        json_request = json.dumps({"RequestType": req_type, "JointPos": joint_pos_strings[i]})
+        sock.sendall(json_request)
+        data = sock.recv(4096)
+        print "received %s" % data
+        time.sleep(0.05)
 finally:
     print "closing socket"
     sock.close()
