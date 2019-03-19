@@ -7,7 +7,7 @@ import maya.cmds as cmds
 import maya.mel as mel
 import json
 
-pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
+#pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
@@ -39,8 +39,10 @@ def myServer(str):
         return "PUT received"
 
 def doPut(request):
-    joint_pos, joint_ang = parsePut(request)
-    moveJoints(joint_pos, joint_ang)
+    joint_pos = parsePut(request)
+    moveJoints(joint_pos)
+    setJointKeyframes()
+    updateFrame()
 
 def parsePut(request):
     pos = request["JointPos"]
@@ -50,21 +52,12 @@ def parsePut(request):
     pos = pos.split()
     joint_pos = []
 
-    ang = request["JointAngles"]
-    ang = ang.replace('[', '')
-    ang = ang.replace(']', '')
-    ang = ang.replace(',', '')
-    ang = ang.split()
-    joint_ang = []
-
     for i in range(len(pos)):
         joint_pos.append(float(pos[i]))
-    for j in range(len(ang)):
-        joint_ang.append(float(ang[j]))
 
-    return joint_pos, joint_ang
+    return joint_pos
 
-def moveJoints(joint_pos, joint_ang):
+def moveJoints(joint_pos):
     global character
     root_xform = getRootXform()
 
@@ -76,6 +69,14 @@ def moveJoints(joint_pos, joint_ang):
         y_xform = root_xform[1] + y_offset
         z_xform = root_xform[2] + z_offset
         cmds.move(x_xform, y_xform, z_xform, character.joints[i], worldSpace=True)
+
+def setJointKeyframes():
+    for joint in character.joints:
+        cmds.setKeyframe(joint, at="translate")
+
+def updateFrame():
+    now = cmds.currentTime(query=True)
+    cmds.currentTime(now + 10)
 
 def getJoints(joints, joint):
     children = cmds.listRelatives(joint)
@@ -125,7 +126,6 @@ def getRootXform():
     root_z = hip_world_xform[2]
 
     return [root_x, root_y, root_z]
-
 
 character = Character()
 #pm.general.commandPort(name=":12345", cl=True)
