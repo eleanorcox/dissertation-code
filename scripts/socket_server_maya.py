@@ -2,8 +2,8 @@
 # Runs from inside Maya.
 #################################################################
 
-import pymel.core as pm
 import maya.cmds as cmds
+import pymel.core as pm
 import maya.mel as mel
 import json
 
@@ -31,15 +31,14 @@ def myServer(str):
     request = json.loads(json_str)
 
     if request["RequestType"] == "GET":
-        print("Request is a GET!")
-        return "GET received"
+        return "GET acknowledged"
     elif request["RequestType"] == "PUT":
-        print("Request is a PUT!")
         doPut(request)
-        return "PUT received"
+        return "PUT acknowledged"
 
 def doPut(request):
-    joint_pos = parsePut(request)
+    joint_pos, root_xform_x_vel, root_xform_z_vel = parsePut(request)
+    moveRootXform(root_xform_x_vel, root_xform_z_vel)
     moveJoints(joint_pos)
     setJointKeyframes()
     updateFrame()
@@ -48,11 +47,28 @@ def parsePut(request):
     pos = request["JointPos"]
     pos = pos.split()
     joint_pos = []
-
     for i in range(len(pos)):
         joint_pos.append(float(pos[i]))
 
-    return joint_pos
+    vel = request["RootXformVels"]
+    vel = vel.split()
+    root_xform_x_vel = float(vel[0])
+    root_xform_z_vel = float(vel[1])
+
+    return joint_pos, root_xform_x_vel, root_xform_z_vel
+
+def calculatePosition(initial_pos, velocity):
+    # time = 1/120    # frames?
+    time = 1
+    new_pos = (velocity * time) + initial_pos
+    return new_pos
+
+def moveRootXform(root_xform_x_vel, root_xform_z_vel):
+    root_xform = getRootXform()
+    new_x = calculatePosition(root_xform[0], root_xform_x_vel)
+    new_y = 0       # Hardcoded
+    new_z = calculatePosition(root_xform[2], root_xform_z_vel)
+    cmds.move(new_x, new_y, new_z, character.root, worldSpace=True)
 
 def moveJoints(joint_pos):
     global character
@@ -101,8 +117,6 @@ def getRootXform():
     ### HARDCODED NAMES
     left_hip = "JOINT_LHipJoint"
     right_hip = "JOINT_RHipJoint"
-    left_toe = "JOINT_LeftToeBase"
-    right_toe = "JOINT_RightToeBase"
 
     left_world_xform = cmds.xform(left_hip, worldSpace=True, query=True, translation=True)
     right_world_xform = cmds.xform(right_hip, worldSpace=True, query=True, translation=True)
@@ -110,16 +124,8 @@ def getRootXform():
     for i in range(len(left_world_xform)):
         hip_world_xform[i] = (left_world_xform[i]+right_world_xform[i]) / 2
 
-    l_toe_world_xform = cmds.xform(left_toe, worldSpace=True, query=True, translation=True)
-    r_toe_world_xform = cmds.xform(right_toe, worldSpace=True, query=True, translation=True)
-    floor_height = 0
-    if l_toe_world_xform[1] > r_toe_world_xform[1]:
-        floor_height = l_toe_world_xform[1]
-    else:
-        floor_height = r_toe_world_xform[1]
-
     root_x = hip_world_xform[0]
-    root_y = floor_height
+    root_y = 0                  # Hardcoded
     root_z = hip_world_xform[2]
 
     return [root_x, root_y, root_z]
