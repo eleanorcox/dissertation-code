@@ -23,18 +23,64 @@ mel.eval(melproc)
 # Names of joints stored here for easy access
 class Character():
     def __init__(self):
-        self.root = getRoot()
-        self.joints = getJoints([self.root], self.root)
+        self.root = getRootName()
+        self.joints = getJointNames([self.root], self.root)
+        self.velocities = initialiseVels()
 
 def myServer(str):
     json_str = str.replace("'", '"')
     request = json.loads(json_str)
 
     if request["RequestType"] == "GET":
-        return "GET acknowledged"
+        response = doGet()
+        return response
     elif request["RequestType"] == "PUT":
         doPut(request)
         return "PUT acknowledged"
+
+def doGet():
+    # Get path info
+    path_pos = getPathPos()
+    path_height = getPathHeight()
+    # Get character info
+    initial_joint_pos = getJointPos()
+    initial_joint_vel = character.velocities        # Velocities are not updated anywhere. Working on assumption get only used once at beginning. Other velocities for PFNN will be taken from previous pfnn outputs.
+    # Format as JSON
+    response = formatGetJson(path_pos, path_height, initial_joint_pos, initial_joint_vel)
+    return response
+
+def getPathPos():
+    # path = getPathName()
+    path = "curve1"             # Hardcoded
+    num_spans = cmds.getAttr(path + ".spans")
+    points_per_span = 10
+
+    # Assumes curve is uniformly parameterised (in most cases this is true)
+    path_pos = []
+    for i in range(num_spans):
+        for j in range(points_per_span):
+            param = i + float(j)/float(points_per_span)
+            pos = cmds.pointOnCurve(path, parameter=param, position=True)
+            path_pos.append(pos)
+
+    return path_pos
+
+def getPathHeight():
+    return "height"
+
+# Returns a LIST of joint positions
+def getJointPos():
+    joint_pos = []
+    for joint in character.joints:
+        joint_xform = cmds.xform(joint, worldSpace=True, query=True, translation=True)
+        joint_pos.append(joint_xform[0])
+        joint_pos.append(joint_xform[1])
+        joint_pos.append(joint_xform[2])
+    return joint_pos
+
+def formatGetJson(path_pos, path_height, initial_joint_pos, initial_joint_vel):
+    response = json.dumps({"PathPos": path_pos, "PathHeight": path_height, "JointPos": initial_joint_pos, "JointVel": initial_joint_vel})
+    return response
 
 def doPut(request):
     joint_pos, root_xform_x_vel, root_xform_z_vel = parsePut(request)
@@ -44,14 +90,9 @@ def doPut(request):
     updateFrame()
 
 def parsePut(request):
-    pos = request["JointPos"]
-    pos = pos.split()
-    joint_pos = []
-    for i in range(len(pos)):
-        joint_pos.append(float(pos[i]))
+    joint_pos = request["JointPos"]
 
     vel = request["RootXformVels"]
-    vel = vel.split()
     root_xform_x_vel = float(vel[0])
     root_xform_z_vel = float(vel[1])
 
@@ -91,15 +132,15 @@ def updateFrame():
     now = cmds.currentTime(query=True)
     cmds.currentTime(now + 1)
 
-def getJoints(joints, joint):
+def getJointNames(joints, joint):
     children = cmds.listRelatives(joint)
     if children is not None:
         for child in children:
             joints.append(child)
-            joints = getJoints(joints, child)
+            joints = getJointNames(joints, child)
     return joints
 
-def getRoot():
+def getRootName():
     joints = cmds.ls(type='joint')
     x = joints[0]
     found = False
@@ -130,5 +171,12 @@ def getRootXform():
 
     return [root_x, root_y, root_z]
 
+def initialiseVels():
+    velocities = []
+    for i in range(93):
+        velocities.append(0)
+    return velocities
+
 character = Character()
+
 #pm.general.commandPort(name=":12345", cl=True)
