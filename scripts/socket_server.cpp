@@ -7,6 +7,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <nlohmann/json.hpp>
+#include <iostream>
+
+using json = nlohmann::json;
 
 void dostuff(int);
 
@@ -68,12 +72,20 @@ int main(int argc, char *argv[]) {
 /* A separate instance of this function is called for each connection */
 void dostuff(int sock) {
 	int n;
-	char buffer[512];
+	char buffer[4000];
 
-	bzero(buffer,512);
-	n = read(sock,buffer,511);
+	bzero(buffer,4000);
+	n = read(sock,buffer,3999);
 	if (n < 0) error("ERROR reading from socket");
 	printf("Here is the message: %s\n",buffer);
+
+	// Have to convert from char array to string, then can parse to json
+	std::string string_msg = buffer;
+	json json_msg = json::parse(string_msg);
+
+	std::array<int, 3> aaa = json_msg["test"];
+	// Note: c++ cannot print arrays but can print the elements from them
+	std::cout << aaa[0] << aaa[1] << aaa[2] << "\n";
 
 	n = write(sock,"I got your message",18);
 	if (n < 0) error("ERROR writing to socket");
