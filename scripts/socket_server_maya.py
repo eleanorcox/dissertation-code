@@ -7,9 +7,9 @@ import pymel.core as pm
 import maya.mel as mel
 import json
 
-#pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
+pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
-anim_frames = 10
+anim_frames = 15
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
@@ -35,6 +35,7 @@ def myServer(str):
 
     if request["RequestType"] == "GET":
         response = doGet()
+        #response = json.dumps({"test": [1,2,3,4]})
         return response
     elif request["RequestType"] == "PUT":
         doPut(request)
@@ -42,9 +43,9 @@ def myServer(str):
 
 def doGet():
     # Get path info
-    full_path_pos = getPathPos()
+    full_path_pos, path_middle_heights = getPathPos()
     full_path_dir = getPathDir(full_path_pos)
-    full_path_height = getPathHeight()
+    full_path_height = getPathHeight(full_path_pos, full_path_dir, path_middle_heights)
     # Get character info
     initial_joint_pos = getJointPos()
     initial_joint_vel = character.velocities
@@ -63,13 +64,15 @@ def getPathPos():
 
     # Assumes curve is uniformly parameterised (in most cases this is true)
     full_path_pos = []
+    path_middle_heights = []
     for i in range(num_spans):
         for j in range(points_per_span):
             param = i + float(j)/float(points_per_span)
             pos = cmds.pointOnCurve(path, parameter=param, position=True)
             full_path_pos.append([pos[0], pos[2]])  # Only x and z coords needed
+            path_middle_heights.append(pos[1])      # For use later in GetHeights function
 
-    return full_path_pos
+    return full_path_pos, path_middle_heights
 
 ### THINK this is how directions are used in pfnn, not sure
 def getPathDir(full_path_pos):
@@ -83,8 +86,16 @@ def getPathDir(full_path_pos):
     full_path_dir.append([0,0]) # For final point on trajectory
     return full_path_dir
 
-def getPathHeight():
-    return "height"
+def getPathHeight(full_path_pos, full_path_dir, path_middle_heights):
+    # With high enough sampling for path (which is needed anyway for good animation) the
+    # left and right points are orthogonal to the direction of a point
+    # Right now can't be bothered to do the actual maths for this, so just going to set everything to 0 for testing
+    # TODO: implement properly later
+
+    full_path_height = []
+    for i in range(len(full_path_pos)):
+        full_path_height.append([0, 0, 0])
+    return full_path_height
 
 # Returns a LIST of joint positions
 def getJointPos():
@@ -96,6 +107,7 @@ def getJointPos():
         joint_pos.append(joint_xform[2])
     return joint_pos
 
+# TODO: full implementation from user input
 def getGait():
     # For gait, 0=stand, 1=walk, 2=jog, 4=crouch, 5=jump, 6=unused (in pfnn)
     # Want gait at each point along path - i.e. at each frame
@@ -135,7 +147,7 @@ def positionFromVelocity(initial_pos, velocity):
 def moveRootXform(root_xform_x_vel, root_xform_z_vel):
     root_xform = getRootXform()
     new_x = positionFromVelocity(root_xform[0], root_xform_x_vel)
-    new_y = 0       # Hardcoded
+    new_y = 0       # TODO: Hardcoded
     new_z = positionFromVelocity(root_xform[2], root_xform_z_vel)
     cmds.move(new_x, new_y, new_z, character.root, worldSpace=True)
 
@@ -183,7 +195,7 @@ def getRootName():
     return root
 
 def getRootXform():
-    ### HARDCODED NAMES
+    ### TODO: HARDCODED NAMES
     left_hip = "JOINT_LHipJoint"
     right_hip = "JOINT_RHipJoint"
 
@@ -194,7 +206,7 @@ def getRootXform():
         hip_world_xform[i] = (left_world_xform[i]+right_world_xform[i]) / 2
 
     root_x = hip_world_xform[0]
-    root_y = 0                  # Hardcoded
+    root_y = 0                  # TODO: Hardcoded
     root_z = hip_world_xform[2]
 
     return [root_x, root_y, root_z]
