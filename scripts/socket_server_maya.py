@@ -9,6 +9,8 @@ import json
 
 #pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
+anim_frames = 10
+
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
 global proc string myServer(string $str){
@@ -40,30 +42,46 @@ def myServer(str):
 
 def doGet():
     # Get path info
-    path_pos = getPathPos()
-    path_height = getPathHeight()
+    full_path_pos = getPathPos()
+    full_path_dir = getPathDir(full_path_pos)
+    full_path_height = getPathHeight()
     # Get character info
     initial_joint_pos = getJointPos()
-    initial_joint_vel = character.velocities        # Velocities are not updated anywhere. Working on assumption get only used once at beginning. Other velocities for PFNN will be taken from previous pfnn outputs.
+    initial_joint_vel = character.velocities
+    # Get gait info
+    full_gait = getGait()
     # Format as JSON
-    response = formatGetJson(path_pos, path_height, initial_joint_pos, initial_joint_vel)
+    response = formatGetJson(full_path_pos, full_path_dir, full_path_height, initial_joint_pos, initial_joint_vel, full_gait)
     return response
 
+# Returns a list of [pos x, pos z] pairs
 def getPathPos():
     # path = getPathName()
     path = "curve1"             # Hardcoded
     num_spans = cmds.getAttr(path + ".spans")
-    points_per_span = 10
+    points_per_span = anim_frames / num_spans
 
     # Assumes curve is uniformly parameterised (in most cases this is true)
-    path_pos = []
+    full_path_pos = []
     for i in range(num_spans):
         for j in range(points_per_span):
             param = i + float(j)/float(points_per_span)
             pos = cmds.pointOnCurve(path, parameter=param, position=True)
-            path_pos.append(pos)
+            full_path_pos.append([pos[0], pos[2]])  # Only x and z coords needed
 
-    return path_pos
+    return full_path_pos
+
+### THINK this is how directions are used in pfnn, not sure
+def getPathDir(full_path_pos):
+    full_path_dir = []
+    for i in range(len(full_path_pos) - 1):
+        x_dir = full_path_pos[i+1][0] - full_path_pos[i][0]
+        z_dir = full_path_pos[i+1][1] - full_path_pos[i][1]
+        direction = [x_dir, z_dir]
+        full_path_dir.append(direction)
+
+    full_path_dir.append([0,0]) # For final point on trajectory
+    return full_path_dir
 
 def getPathHeight():
     return "height"
@@ -78,8 +96,18 @@ def getJointPos():
         joint_pos.append(joint_xform[2])
     return joint_pos
 
-def formatGetJson(path_pos, path_height, initial_joint_pos, initial_joint_vel):
-    response = json.dumps({"PathPos": path_pos, "PathHeight": path_height, "JointPos": initial_joint_pos, "JointVel": initial_joint_vel})
+def getGait():
+    # For gait, 0=stand, 1=walk, 2=jog, 4=crouch, 5=jump, 6=unused (in pfnn)
+    # Want gait at each point along path - i.e. at each frame
+    # For now just set these to one of the values for testing, at a later date change this to get input from user
+    # Will need to format for X properly in loco.py
+    gait = []
+    for i in range(anim_frames):
+        gait.append(2)
+    return gait
+
+def formatGetJson(full_path_pos, full_path_dir, full_path_height, initial_joint_pos, initial_joint_vel, full_gait):
+    response = json.dumps({"AnimFrames": anim_frames, "PathPos": full_path_pos, "PathDir": full_path_dir, "PathHeight": full_path_height, "JointPos": initial_joint_pos, "JointVel": initial_joint_vel, "Gait": full_gait})
     return response
 
 def doPut(request):
@@ -98,7 +126,7 @@ def parsePut(request):
 
     return joint_pos, root_xform_x_vel, root_xform_z_vel
 
-def calculatePosition(initial_pos, velocity):
+def positionFromVelocity(initial_pos, velocity):
     # time = 1/120    # frames?
     time = 1
     new_pos = (velocity * time) + initial_pos
@@ -106,9 +134,9 @@ def calculatePosition(initial_pos, velocity):
 
 def moveRootXform(root_xform_x_vel, root_xform_z_vel):
     root_xform = getRootXform()
-    new_x = calculatePosition(root_xform[0], root_xform_x_vel)
+    new_x = positionFromVelocity(root_xform[0], root_xform_x_vel)
     new_y = 0       # Hardcoded
-    new_z = calculatePosition(root_xform[2], root_xform_z_vel)
+    new_z = positionFromVelocity(root_xform[2], root_xform_z_vel)
     cmds.move(new_x, new_y, new_z, character.root, worldSpace=True)
 
 def moveJoints(joint_pos):
