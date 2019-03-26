@@ -252,7 +252,7 @@ struct PFNN {
 static PFNN* pfnn = NULL;
 
 /* A separate instance of this function is called for each connection */
-void dostuff(int sock) {
+void processAnim(int sock) {
 	int n;
 	char buffer[4000];
 
@@ -260,21 +260,34 @@ void dostuff(int sock) {
 	n = read(sock,buffer,3999);
 	if (n < 0) error("ERROR reading from socket");
 
+	/* Update Xp based on input */
+
 	// Have to convert from char array to string, then can parse to json
 	std::string string_msg = buffer;
 	json json_msg = json::parse(string_msg);
-	std::array<int, 3> test = json_msg["test"];
-  std::array<float, 342> data = json_msg["data"];
+  // std::array<float, PFNN::XDIM> X_in = json_msg["X"];
+	int frames = json_msg["Frames"];
+	
+  // for (int i = 0; i < PFNN::XDIM; i++){
+  //   pfnn->Xp(i) = X_in[i];
+  // }
 
-  for (int i = 0; i < 342; i++){
-    pfnn->Xp(i) = data[i];
-  }
-
+	/* Predict next frame */
   // pfnn->predict(character->phase);
   pfnn->predict(0);
 
-	n = write(sock,"I got your message",18);
+	/* Extract relevant Y info, JSONify */
+
+	/* Send y info */
+	n = write(sock,"got it!",7);
 	if (n < 0) error("ERROR writing to socket");
+
+	/* Update Xp based on Yp, initial Xp */
+
+	// Update Phase:::
+	//   character->phase = fmod(character->phase + (stand_amount * 0.9f + 0.1f) * 2*M_PI * pfnn->Yp(3), 2*M_PI);
+
+	/* Predict again, ... */
 }
 
 int main(int argc, char **argv) {
@@ -284,7 +297,6 @@ int main(int argc, char **argv) {
   //pfnn = new PFNN(PFNN::MODE_CUBIC);
   //pfnn = new PFNN(PFNN::MODE_LINEAR);
   pfnn->load();
-
 
   /* Networking */
   int sockfd, newsockfd, portno, pid;
@@ -325,7 +337,7 @@ int main(int argc, char **argv) {
 
 		if (pid == 0){
 			close(sockfd);
-			dostuff(newsockfd);
+			processAnim(newsockfd);
 			exit(0);
 		}
 		else
