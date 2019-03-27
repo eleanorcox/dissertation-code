@@ -7,10 +7,13 @@ import time
 import json
 import sys
 
-test_maya_get = True
-test_pfnn_send = False
-test_maya_put = False
+test_maya_get = False
+test_pfnn_send = True
+test_maya_put = True
 XDIM = 342
+
+maya_address = ("localhost", 12345)
+pfnn_address = ("localhost", 54321)
 
 def createX(json):
     X = np.zeros(XDIM)
@@ -80,16 +83,16 @@ def createJsonPfnn(js, initial_X):
 if test_maya_get:
     # Create a TCP/IP socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    maya_address = ("localhost", 12345)
-    print "Connecting to %s port %s" % maya_address
+    print("Connecting to %s port %s" % maya_address)
     sock.connect(maya_address)
 
     req_type = "GET"
     json_request = json.dumps({"RequestType": req_type})
     sock.sendall(json_request)
+
     response = sock.recv(4096)
-    print "Received %s" % response
-    print "Closing socket to Maya"
+    print("Received %s" % response)
+    print("Closing socket to Maya\n")
     sock.close()
 
     # Maya appends "\n\x00" to the end of anything it sends back, the following removes this so the json can be extracted
@@ -101,21 +104,26 @@ if test_maya_get:
 
 if test_pfnn_send:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    pfnn_address = ("localhost", 54321)
-    print "Connecting to %s port %s" % pfnn_address
+    print("Connecting to %s port %s" % pfnn_address)
     sock.connect(pfnn_address)
 
     sock.sendall(json_pfnn)
     response = sock.recv(4096)
-    print "Received %s" % response
-    print "Closing socket to PFNN"
+    print("Received: %s" % response)
+    print("Closing socket to PFNN")
     sock.close()
 
-# if test_maya_put:
-#     for i in range(num_frames):
-#         req_type = "PUT"
-#         json_request = json.dumps({"RequestType": req_type, "JointPos": joint_pos_lists[i], "RootXformVels": xz_vel_lists[i]})
-#         sock.sendall(json_request)
-#         data = sock.recv(4096)
-#         print "Received %s" % data
-#         time.sleep(0.1)
+    json_response = json.loads(response)
+
+if test_maya_put:
+    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # print("Connecting to %s port %s" % maya_address)
+    # sock.connect(maya_address)
+
+    json_response["RequestType"] = "BUFF"
+    json_request = json.dumps(json_response)
+
+    # sock.sendall(json_request)
+    # data = sock.recv(4096)
+    # print("Received %s" % data)
+    # time.sleep(0.1)

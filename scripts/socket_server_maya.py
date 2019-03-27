@@ -7,7 +7,8 @@ import pymel.core as pm
 import maya.mel as mel
 import json
 
-pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
+# May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
+#pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
 anim_frames = 15
 
@@ -98,6 +99,7 @@ def getPathHeight(full_path_pos, full_path_dir, path_middle_heights):
     return full_path_height
 
 # Returns a LIST of joint positions
+# TODO: LOCAL joint positions not global!!
 def getJointPos():
     joint_pos = []
     for joint in character.joints:

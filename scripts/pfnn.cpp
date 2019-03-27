@@ -243,21 +243,45 @@ struct PFNN {
     }
 
     Yp = (Yp * Ystd) + Ymean;
-    std::cout << "Yp" << "\n";
-    std::cout << Yp << "\n";
+    // std::cout << "Yp" << "\n";
+    // std::cout << Yp << "\n";
   }
 
 };
 
 static PFNN* pfnn = NULL;
 
+std::string getRelevantYJson(int frame) {
+	int joint_num = 31;
+	float root_xform_x_vel = pfnn->Yp(0);
+	float root_xform_z_vel = pfnn->Yp(1);
+	float root_xform_ang_vel = pfnn->Yp(2);
+
+	std::array<float, 93> joint_pos;
+	for (int i = 0; i < joint_num*3; i++) {
+		joint_pos[i] = pfnn->Yp(32+i);
+	}
+
+	json y_json;
+	y_json["RootX"] = root_xform_x_vel;
+	y_json["RootZ"] = root_xform_z_vel;
+	y_json["RootAng"] = root_xform_ang_vel;
+	y_json["JointPos"] = joint_pos;
+	y_json["Frame"] = frame;
+
+	std::string y_json_str;
+	y_json_str = y_json.dump();
+
+	return y_json_str;
+}
+
 /* A separate instance of this function is called for each connection */
 void processAnim(int sock) {
 	int n;
-	char buffer[4000];
+	char buffer[5000];
 
-	bzero(buffer,4000);
-	n = read(sock,buffer,3999);
+	bzero(buffer,5000);
+	n = read(sock,buffer,4999);
 	if (n < 0) error("ERROR reading from socket");
 
 	/* Update Xp based on input */
@@ -265,21 +289,22 @@ void processAnim(int sock) {
 	// Have to convert from char array to string, then can parse to json
 	std::string string_msg = buffer;
 	json json_msg = json::parse(string_msg);
-  // std::array<float, PFNN::XDIM> X_in = json_msg["X"];
-	int frames = json_msg["Frames"];
-	
-  // for (int i = 0; i < PFNN::XDIM; i++){
-  //   pfnn->Xp(i) = X_in[i];
-  // }
+  std::array<float, PFNN::XDIM> x_in = json_msg["X"];
+
+  for (int i = 0; i < PFNN::XDIM; i++){
+    pfnn->Xp(i) = x_in[i];
+  }
 
 	/* Predict next frame */
   // pfnn->predict(character->phase);
   pfnn->predict(0);
 
 	/* Extract relevant Y info, JSONify */
+	int currentFrame = 0;			//TODO: get and update this from x input
+	std::string y_out = getRelevantYJson(currentFrame);
 
 	/* Send y info */
-	n = write(sock,"got it!",7);
+	n = write(sock, y_out.c_str(), y_out.length());
 	if (n < 0) error("ERROR writing to socket");
 
 	/* Update Xp based on Yp, initial Xp */
