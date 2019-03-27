@@ -7,13 +7,13 @@ import time
 import json
 import sys
 
-test_maya_get = False
+test_maya_get = True
 test_pfnn_send = True
-test_maya_put = True
+test_maya_put = False
 XDIM = 342
 
 maya_address = ("localhost", 12345)
-pfnn_address = ("localhost", 54321)
+pfnn_address = ("35.231.128.96", 54321)
 
 def createX(json):
     X = np.zeros(XDIM)
@@ -108,7 +108,7 @@ if test_pfnn_send:
     sock.connect(pfnn_address)
 
     sock.sendall(json_pfnn)
-    response = sock.recv(4096)
+    response = sock.recv(5000)
     print("Received: %s" % response)
     print("Closing socket to PFNN")
     sock.close()

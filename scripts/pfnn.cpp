@@ -287,17 +287,25 @@ void processAnim(int sock) {
 	/* Update Xp based on input */
 
 	// Have to convert from char array to string, then can parse to json
-	std::string string_msg = buffer;
-	json json_msg = json::parse(string_msg);
-  std::array<float, PFNN::XDIM> x_in = json_msg["X"];
+	std::string test = buffer;
+	std::string string_msg = "";
+	for(int i = 0; i < n; i++) {
+		string_msg = string_msg + buffer[i];
+	}
 
-  for (int i = 0; i < PFNN::XDIM; i++){
-    pfnn->Xp(i) = x_in[i];
-  }
+	std::cout << test << "\n";
+	std::cout << string_msg << "\n";
+	
+	json json_msg = json::parse(string_msg);
+	std::array<float, PFNN::XDIM> x_in = json_msg["X"];
+
+	for (int i = 0; i < PFNN::XDIM; i++){
+		pfnn->Xp(i) = x_in[i];
+	}
 
 	/* Predict next frame */
-  // pfnn->predict(character->phase);
-  pfnn->predict(0);
+	// pfnn->predict(character->phase);
+	pfnn->predict(0);
 
 	/* Extract relevant Y info, JSONify */
 	int currentFrame = 0;			//TODO: get and update this from x input
@@ -317,14 +325,14 @@ void processAnim(int sock) {
 
 int main(int argc, char **argv) {
 
-  /* Create and initialise PFNN */
-  pfnn = new PFNN(PFNN::MODE_CONSTANT);
-  //pfnn = new PFNN(PFNN::MODE_CUBIC);
-  //pfnn = new PFNN(PFNN::MODE_LINEAR);
-  pfnn->load();
+	/* Create and initialise PFNN */
+	pfnn = new PFNN(PFNN::MODE_CONSTANT);
+	//pfnn = new PFNN(PFNN::MODE_CUBIC);
+	//pfnn = new PFNN(PFNN::MODE_LINEAR);
+	pfnn->load();
 
-  /* Networking */
-  int sockfd, newsockfd, portno, pid;
+	/* Networking */
+	int sockfd, newsockfd, portno, pid;
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
 
@@ -349,10 +357,10 @@ int main(int argc, char **argv) {
 	listen(sockfd,5);
 	clilen = sizeof(cli_addr);
 
-  while(true){
+	while(true){
 		newsockfd = accept(sockfd,
-											(struct sockaddr *) &cli_addr,
-											&clilen);
+						  (struct sockaddr *) &cli_addr,
+						  &clilen);
 		if (newsockfd < 0)
 	    error("ERROR on accept");
 
