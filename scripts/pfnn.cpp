@@ -278,24 +278,16 @@ std::string getRelevantYJson(int frame) {
 /* A separate instance of this function is called for each connection */
 void processAnim(int sock) {
 	int n;
-	char buffer[5000];
+	char buffer[8192];
 
-	bzero(buffer,5000);
-	n = read(sock,buffer,4999);
+	bzero(buffer,8192);
+	n = recv(sock,buffer,8191,0);
 	if (n < 0) error("ERROR reading from socket");
 
 	/* Update Xp based on input */
 
 	// Have to convert from char array to string, then can parse to json
-	std::string test = buffer;
-	std::string string_msg = "";
-	for(int i = 0; i < n; i++) {
-		string_msg = string_msg + buffer[i];
-	}
-
-	std::cout << test << "\n";
-	std::cout << string_msg << "\n";
-	
+	std::string string_msg = buffer;
 	json json_msg = json::parse(string_msg);
 	std::array<float, PFNN::XDIM> x_in = json_msg["X"];
 
@@ -312,7 +304,7 @@ void processAnim(int sock) {
 	std::string y_out = getRelevantYJson(currentFrame);
 
 	/* Send y info */
-	n = write(sock, y_out.c_str(), y_out.length());
+	n = send(sock, y_out.c_str(), y_out.length(),0);
 	if (n < 0) error("ERROR writing to socket");
 
 	/* Update Xp based on Yp, initial Xp */

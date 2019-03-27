@@ -7,7 +7,6 @@ import maya.mel as mel
 import json
 
 # May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
-#pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
 anim_frames = 15
@@ -36,11 +35,12 @@ def myServer(str):
 
     if request["RequestType"] == "GET":
         response = doGet()
-        #response = json.dumps({"test": [1,2,3,4]})
         return response
     elif request["RequestType"] == "PUT":
         doPut(request)
         return "PUT acknowledged"
+    elif request["RequestType"] == "BUFF":
+        return "buff ty"
 
 def doGet():
     # Get path info

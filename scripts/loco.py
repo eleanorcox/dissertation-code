@@ -9,7 +9,7 @@ import sys
 
 test_maya_get = True
 test_pfnn_send = True
-test_maya_put = False
+test_maya_put = True
 XDIM = 342
 
 maya_address = ("localhost", 12345)
@@ -116,14 +116,14 @@ if test_pfnn_send:
     json_response = json.loads(response)
 
 if test_maya_put:
-    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # print("Connecting to %s port %s" % maya_address)
-    # sock.connect(maya_address)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print("Connecting to %s port %s" % maya_address)
+    sock.connect(maya_address)
 
     json_response["RequestType"] = "BUFF"
     json_request = json.dumps(json_response)
 
-    # sock.sendall(json_request)
-    # data = sock.recv(4096)
-    # print("Received %s" % data)
-    # time.sleep(0.1)
+    sock.sendall(json_request)
+    data = sock.recv(4096)
+    print("Received %s" % data)
+    time.sleep(0.1)
