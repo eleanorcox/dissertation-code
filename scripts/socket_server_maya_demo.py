@@ -3,13 +3,13 @@
 #################################################################
 
 import maya.cmds as cmds
-import pymel.core as pm
+#import pymel.core as pm
 import maya.mel as mel
 import json
 
 # May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
 #pm.general.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
-
+cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 anim_frames = 15
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
