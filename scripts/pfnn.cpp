@@ -278,16 +278,28 @@ std::string getRelevantYJson(int frame) {
 /* A separate instance of this function is called for each connection */
 void processAnim(int sock) {
 	int n;
-	char buffer[8192];
+	char buffer[4096];
+	std::string string_msg = "";
+	bool full_msg = false;
 
-	bzero(buffer,8192);
-	n = recv(sock,buffer,8191,0);
-	if (n < 0) error("ERROR reading from socket");
+	// Deals with google compute engine problem where message not all received in one packet
+	while(!full_msg){
+		bzero(buffer,4096);
+		n = recv(sock,buffer,4096,0);
+		if (n < 0) error("ERROR reading from socket");
+
+		// Have to convert from char array to string, then can parse json
+		for(int i = 0; i < n; i++){
+			string_msg = string_msg + buffer[i];
+			if(buffer[i] == '}'){
+				full_msg = true;
+			}
+		}
+	}
+
+	std::cout << string_msg << "\n";
 
 	/* Update Xp based on input */
-
-	// Have to convert from char array to string, then can parse to json
-	std::string string_msg = buffer;
 	json json_msg = json::parse(string_msg);
 	std::array<float, PFNN::XDIM> x_in = json_msg["X"];
 
