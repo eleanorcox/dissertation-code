@@ -7,8 +7,8 @@ import time
 import json
 import sys
 
-test_maya_get = False
-test_pfnn_send = True
+test_maya_get = True
+test_pfnn_send = False
 test_maya_put = False
 XDIM = 342
 

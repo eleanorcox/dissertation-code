@@ -98,15 +98,16 @@ def getPathHeight(full_path_pos, full_path_dir, path_middle_heights):
         full_path_height.append([0, 0, 0])
     return full_path_height
 
-# Returns a LIST of joint positions
-# TODO: LOCAL joint positions not global!!
+# Returns a list of joint positions local to root xform
 def getJointPos():
+    root_xform = getRootXform()
     joint_pos = []
+    
     for joint in character.joints:
         joint_xform = cmds.xform(joint, worldSpace=True, query=True, translation=True)
-        joint_pos.append(joint_xform[0])
-        joint_pos.append(joint_xform[1])
-        joint_pos.append(joint_xform[2])
+        for i in range(len(joint_xform)):
+            joint_pos.append(root_xform[i] - joint_xform[i])
+
     return joint_pos
 
 # TODO: full implementation from user input
