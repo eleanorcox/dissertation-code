@@ -40,7 +40,8 @@ def myServer(str):
         doPut(request)
         return "PUT acknowledged"
     elif request["RequestType"] == "BUFF":
-        return "buff ty"
+        doBuff(request)
+        return "cheese, gromit!"
 
 def doGet():
     # Get path info
@@ -102,7 +103,7 @@ def getPathHeight(full_path_pos, full_path_dir, path_middle_heights):
 def getJointPos():
     root_xform = getRootXform()
     joint_pos = []
-    
+
     for joint in character.joints:
         joint_xform = cmds.xform(joint, worldSpace=True, query=True, translation=True)
         for i in range(len(joint_xform)):
@@ -132,12 +133,28 @@ def doPut(request):
     setJointKeyframes()
     updateFrame()
 
+def doBuff(request):
+    setJointKeyframes()
+    updateFrame()
+    joint_pos, root_xform_x_vel, root_xform_z_vel = parseBuff(request)
+    moveRootXform(root_xform_x_vel, root_xform_z_vel)
+    moveJoints(joint_pos)
+    setJointKeyframes()
+    updateFrame()
+
 def parsePut(request):
     joint_pos = request["JointPos"]
 
     vel = request["RootXformVels"]
     root_xform_x_vel = float(vel[0])
     root_xform_z_vel = float(vel[1])
+
+    return joint_pos, root_xform_x_vel, root_xform_z_vel
+
+def parseBuff(request):
+    joint_pos = request["JointPos"]
+    root_xform_x_vel = request["RootX"]
+    root_xform_z_vel = request["RootZ"]
 
     return joint_pos, root_xform_x_vel, root_xform_z_vel
 

@@ -8,13 +8,13 @@ import json
 import sys
 
 test_maya_get = True
-test_pfnn_send = False
-test_maya_put = False
+test_pfnn_send = True
+test_maya_put = True
 XDIM = 342
 
 maya_address = ("localhost", 12345)
-# pfnn_address = ("35.231.128.96", 54321) # google compute engine addr
-pfnn_address = ("localhost", 54321)
+pfnn_address = ("35.231.128.96", 54321) # google compute engine addr
+# pfnn_address = ("localhost", 54321)
 
 def createX(json):
     X = np.zeros(XDIM)
