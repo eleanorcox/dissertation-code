@@ -9,7 +9,7 @@ import json
 # May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
 cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
-anim_frames = 15
+anim_frames = 100
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
@@ -22,12 +22,11 @@ global proc string myServer(string $str){
 
 mel.eval(melproc)
 
-# Names of joints stored here for easy access
+# Names of joints stored here
 class Character():
     def __init__(self):
         self.root = getRootName()
         self.joints = getJointNames([self.root], self.root)
-        self.velocities = initialiseVels()
 
 def myServer(str):
     json_str = str.replace("'", '"')
@@ -36,68 +35,73 @@ def myServer(str):
     if request["RequestType"] == "GET":
         response = doGet()
         return response
-    elif request["RequestType"] == "PUT":
-        doPut(request)
-        return "PUT acknowledged"
+    # elif request["RequestType"] == "PUT":
+    #     doPut(request)
+    #     return "PUT acknowledged"
     elif request["RequestType"] == "BUFF":
         doBuff(request)
         return "cheese, gromit!"
 
 def doGet():
     # Get path info
-    full_path_pos, path_middle_heights = getPathPos()
-    full_path_dir = getPathDir(full_path_pos)
-    full_path_height = getPathHeight(full_path_pos, full_path_dir, path_middle_heights)
+    path_pos, path_central_heights = getPathPos()
+    path_dir = getPathDir(path_pos)
+    path_heights = getPathHeight(path_pos, path_dir, path_central_heights)
     # Get character info
-    initial_joint_pos = getJointPos()
-    initial_joint_vel = character.velocities
+    joint_pos = getJointPos()
+    joint_vel = getJointVel()
     # Get gait info
-    full_gait = getGait()
+    path_gaits = getGait()
     # Format as JSON
-    response = formatGetJson(full_path_pos, full_path_dir, full_path_height, initial_joint_pos, initial_joint_vel, full_gait)
+    response = formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits)
     return response
 
 # Returns a list of [pos x, pos z] pairs
 def getPathPos():
-    # path = getPathName()
-    path = "curve1"             # Hardcoded
+    path = getPathName()
     num_spans = cmds.getAttr(path + ".spans")
     points_per_span = anim_frames / num_spans
 
     # Assumes curve is uniformly parameterised (in most cases this is true)
-    full_path_pos = []
-    path_middle_heights = []
+    path_pos = []
+    path_central_heights = []
     for i in range(num_spans):
         for j in range(points_per_span):
             param = i + float(j)/float(points_per_span)
             pos = cmds.pointOnCurve(path, parameter=param, position=True)
-            full_path_pos.append([pos[0], pos[2]])  # Only x and z coords needed
-            path_middle_heights.append(pos[1])      # For use later in GetHeights function
+            path_pos.append([pos[0], pos[2]])  # Only x and z coords needed
+            path_central_heights.append(pos[1])      # For use later in GetHeights function
 
-    return full_path_pos, path_middle_heights
+    return path_pos, path_central_heights
+
+def getPathName():
+    path = "curve1"     # Hardcoded
+    return path
 
 ### THINK this is how directions are used in pfnn, not sure
-def getPathDir(full_path_pos):
-    full_path_dir = []
-    for i in range(len(full_path_pos) - 1):
-        x_dir = full_path_pos[i+1][0] - full_path_pos[i][0]
-        z_dir = full_path_pos[i+1][1] - full_path_pos[i][1]
+def getPathDir(path_pos):
+    path_dir = []
+    for i in range(len(path_pos) - 1):
+        x_dir = path_pos[i+1][0] - path_pos[i][0]
+        z_dir = path_pos[i+1][1] - path_pos[i][1]
         direction = [x_dir, z_dir]
-        full_path_dir.append(direction)
+        path_dir.append(direction)
 
-    full_path_dir.append([0,0]) # For final point on trajectory
-    return full_path_dir
+    path_dir.append([0,0]) # For final point on trajectory
+    return path_dir
 
-def getPathHeight(full_path_pos, full_path_dir, path_middle_heights):
+def getPathHeight(path_pos, path_dir, path_central_heights):
     # With high enough sampling for path (which is needed anyway for good animation) the
     # left and right points are orthogonal to the direction of a point
     # Right now can't be bothered to do the actual maths for this, so just going to set everything to 0 for testing
     # TODO: implement properly later
 
-    full_path_height = []
-    for i in range(len(full_path_pos)):
-        full_path_height.append([0, 0, 0])
-    return full_path_height
+    # msg from future eleanor: can use pointoncurve function with the normalisednormal flag to get the normal at a point on the curve, then can find point 25cm along the normal
+    # saves you having to do the weird maths you were trying to do lol
+    path_heights = []
+    for i in range(len(path_pos)):
+        path_heights.append([0, 0, 0])
+    return path_heights
 
 # Returns a list of joint positions local to root xform
 def getJointPos():
@@ -111,6 +115,12 @@ def getJointPos():
 
     return joint_pos
 
+def getJointVel():
+    velocities = []
+    for i in range(93):
+        velocities.append(0)
+    return velocities
+
 # TODO: full implementation from user input
 def getGait():
     # For gait, 0=stand, 1=walk, 2=jog, 4=crouch, 5=jump, 6=unused (in pfnn)
@@ -119,48 +129,46 @@ def getGait():
     # Will need to format for X properly in loco.py
     gait = []
     for i in range(anim_frames):
-        gait.append(2)
+        gait.append(0)
     return gait
 
-def formatGetJson(full_path_pos, full_path_dir, full_path_height, initial_joint_pos, initial_joint_vel, full_gait):
-    response = json.dumps({"AnimFrames": anim_frames, "PathPos": full_path_pos, "PathDir": full_path_dir, "PathHeight": full_path_height, "JointPos": initial_joint_pos, "JointVel": initial_joint_vel, "Gait": full_gait})
+def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits):
+    response = json.dumps({"AnimFrames": anim_frames, "PathPos": path_pos, "PathDir": path_dir, "PathHeight": path_heights, "JointPos": joint_pos, "JointVel": joint_vel, "Gait": path_gaits})
     return response
 
-def doPut(request):
-    joint_pos, root_xform_x_vel, root_xform_z_vel = parsePut(request)
-    moveRootXform(root_xform_x_vel, root_xform_z_vel)
-    moveJoints(joint_pos)
-    setJointKeyframes()
-    updateFrame()
+# def doPut(request):
+#     joint_pos, root_xform_x_vel, root_xform_z_vel = parsePut(request)
+#     moveRootXform(root_xform_x_vel, root_xform_z_vel)
+#     moveJoints(joint_pos)
+#     setJointKeyframes()
+#     updateFrame()
+
+# def parsePut(request):
+#     joint_pos = request["JointPos"]
+#     vel = request["RootXformVels"]
+#     root_xform_x_vel = float(vel[0])
+#     root_xform_z_vel = float(vel[1])
+#
+#     return joint_pos, root_xform_x_vel, root_xform_z_vel
 
 def doBuff(request):
     setJointKeyframes()
     updateFrame()
+
     joint_pos, root_xform_x_vel, root_xform_z_vel = parseBuff(request)
     moveRootXform(root_xform_x_vel, root_xform_z_vel)
     moveJoints(joint_pos)
     setJointKeyframes()
     updateFrame()
 
-def parsePut(request):
-    joint_pos = request["JointPos"]
-
-    vel = request["RootXformVels"]
-    root_xform_x_vel = float(vel[0])
-    root_xform_z_vel = float(vel[1])
-
-    return joint_pos, root_xform_x_vel, root_xform_z_vel
-
 def parseBuff(request):
     joint_pos = request["JointPos"]
     root_xform_x_vel = request["RootX"]
     root_xform_z_vel = request["RootZ"]
-
     return joint_pos, root_xform_x_vel, root_xform_z_vel
 
 def positionFromVelocity(initial_pos, velocity):
-    # time = 1/120    # frames?
-    time = 1
+    time = 1    # maybe need frames? so 1/60?
     new_pos = (velocity * time) + initial_pos
     return new_pos
 
@@ -230,12 +238,6 @@ def getRootXform():
     root_z = hip_world_xform[2]
 
     return [root_x, root_y, root_z]
-
-def initialiseVels():
-    velocities = []
-    for i in range(93):
-        velocities.append(0)
-    return velocities
 
 character = Character()
 

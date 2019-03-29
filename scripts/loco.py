@@ -13,7 +13,7 @@ test_maya_put = True
 XDIM = 342
 
 maya_address = ("localhost", 12345)
-pfnn_address = ("35.231.128.96", 54321) # google compute engine addr
+pfnn_address = ("35.246.116.151", 54321) # google compute engine addr
 # pfnn_address = ("localhost", 54321)
 
 def createX(json):
@@ -24,25 +24,25 @@ def createX(json):
     # Trajectory positions and directions
     for i in range(w/2):
         past_posx = json["PathPos"][0][0]
-        posx = json["PathPos"][i][0]
+        posx = json["PathPos"][i*10][0]
         past_posz = json["PathPos"][0][1]
-        posz = json["PathPos"][i][1]
+        posz = json["PathPos"][i*10][1]
         X[i+0*w/2] = past_posx
         X[i+1*w/2] = posx
         X[i+2*w/2] = past_posz
         X[i+3*w/2] = posz
 
         past_dirx = json["PathDir"][0][0]
-        dirx = json["PathDir"][i][0]
+        dirx = json["PathDir"][i*10][0]
         past_dirz = json["PathDir"][0][1]
-        dirz = json["PathDir"][i][1]
+        dirz = json["PathDir"][i*10][1]
         X[i+4*w/2] = past_dirx
         X[i+5*w/2] = dirx
         X[i+6*w/2] = past_dirz
         X[i+7*w/2] = dirz
 
     # Gait
-    for i in range(w):
+    for i in range(w):  ##WILL NEED TO FIX LATER
         gait_index = json["Gait"][i]
         if gait_index == 0: # Stand
             X[i+4*w] = 1.0
@@ -91,7 +91,13 @@ if test_maya_get:
     json_request = json.dumps({"RequestType": req_type})
     sock.sendall(json_request)
 
-    response = sock.recv(4096)
+    full_response = False
+    response = ""
+    while not full_response:
+        resp = sock.recv(4096)
+        response = response + resp
+        if '}' in resp:
+            full_response = True
     print("Received %s" % response)
     print("Closing socket to Maya\n")
     sock.close()
