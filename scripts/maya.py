@@ -44,9 +44,9 @@ def myServer(str):
 
 def doGet():
     # Get path info
-    path_pos, path_central_heights = getPathPos()
-    path_dir = getPathDir(path_pos)
-    path_heights = getPathHeight(path_pos, path_dir, path_central_heights)
+    path_pos = getPathPos()
+    path_dir = getPathDir()
+    path_heights = getPathHeight()
     # Get character info
     joint_pos = getJointPos()
     joint_vel = getJointVel()
@@ -61,7 +61,7 @@ def getPathPos():
     path = getPathName()
     point_dist = 1.0/anim_frames
     path_pos = []
-    
+
     for i in range(anim_frames):
         param = i * point_dist
         pos = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, position=True)
@@ -69,32 +69,48 @@ def getPathPos():
 
     return path_pos
 
+# TODO: get from user input
 def getPathName():
     path = "curve1"     # Hardcoded
     return path
 
 ### THINK this is how directions are used in pfnn, not sure
-def getPathDir(path_pos):
+# Returns a list of [dir x, dir z] pairs
+def getPathDir():
+    path = getPathName()
+    point_dist = 1.0/anim_frames
     path_dir = []
-    for i in range(len(path_pos) - 1):
-        x_dir = path_pos[i+1][0] - path_pos[i][0]
-        z_dir = path_pos[i+1][1] - path_pos[i][1]
-        direction = [x_dir, z_dir]
-        path_dir.append(direction)
 
-    path_dir.append([0,0]) # For final point on trajectory
+    for i in range(anim_frames):
+        param = i * point_dist
+        tangent = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedTangent=True)
+        path_dir.append([tangent[0], tangent[2]])  # Only x and z coords needed
+
+    # path_dir = []
+    # for i in range(len(path_pos) - 1):
+    #     x_dir = path_pos[i+1][0] - path_pos[i][0]
+    #     z_dir = path_pos[i+1][1] - path_pos[i][1]
+    #     direction = [x_dir, z_dir]
+    #     path_dir.append(direction)
+    # path_dir.append([0,0]) # For final point on trajectory
+
     return path_dir
 
-def getPathHeight(path_pos, path_dir, path_central_heights):
-    # With high enough sampling for path (which is needed anyway for good animation) the
-    # left and right points are orthogonal to the direction of a point
-    # Right now can't be bothered to do the actual maths for this, so just going to set everything to 0 for testing
-    # TODO: implement properly later
+# TODO: implement properly later
+# Returns a list of [l, c, r] heights of the left, central and right sample points on the path, local to the root xform
+def getPathHeight():
+    # path = getPathName()
+    # point_dist = 1.0/anim_frames
+    # path_norms = []
+    #
+    # for i in range(anim_frames):
+    #     param = i * point_dist
+    #     norm = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedNormal=True)
 
-    # msg from future eleanor: can use pointoncurve function with the normalisednormal flag to get the normal at a point on the curve, then can find point 25cm along the normal
-    # saves you having to do the weird maths you were trying to do lol
+    # Right now can't be bothered to do this properly, so just going to set everything to 0 for testing
+    # for future: 25cm l/r in the test skeleton is roughly 10 units (guesstimate)
     path_heights = []
-    for i in range(len(path_pos)):
+    for i in range(anim_frames):
         path_heights.append([0, 0, 0])
     return path_heights
 
