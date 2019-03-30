@@ -59,20 +59,15 @@ def doGet():
 # Returns a list of [pos x, pos z] pairs
 def getPathPos():
     path = getPathName()
-    num_spans = cmds.getAttr(path + ".spans")
-    points_per_span = anim_frames / num_spans
-
-    # Assumes curve is uniformly parameterised (in most cases this is true)
+    point_dist = 1.0/anim_frames
     path_pos = []
-    path_central_heights = []
-    for i in range(num_spans):
-        for j in range(points_per_span):
-            param = i + float(j)/float(points_per_span)
-            pos = cmds.pointOnCurve(path, parameter=param, position=True)
-            path_pos.append([pos[0], pos[2]])  # Only x and z coords needed
-            path_central_heights.append(pos[1])      # For use later in GetHeights function
+    
+    for i in range(anim_frames):
+        param = i * point_dist
+        pos = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, position=True)
+        path_pos.append([pos[0], pos[2]])  # Only x and z coords needed
 
-    return path_pos, path_central_heights
+    return path_pos
 
 def getPathName():
     path = "curve1"     # Hardcoded
@@ -108,6 +103,7 @@ def getJointPos():
     root_xform = getRootXform()
     joint_pos = []
 
+    # Maybe need to add in root rotation (i.e. r_rot * (r_xform - j_xform))
     for joint in character.joints:
         joint_xform = cmds.xform(joint, worldSpace=True, query=True, translation=True)
         for i in range(len(joint_xform)):
@@ -115,6 +111,7 @@ def getJointPos():
 
     return joint_pos
 
+# Returns a list of joint velocities local to root xform
 def getJointVel():
     velocities = []
     for i in range(93):
@@ -126,7 +123,6 @@ def getGait():
     # For gait, 0=stand, 1=walk, 2=jog, 4=crouch, 5=jump, 6=unused (in pfnn)
     # Want gait at each point along path - i.e. at each frame
     # For now just set these to one of the values for testing, at a later date change this to get input from user
-    # Will need to format for X properly in loco.py
     gait = []
     for i in range(anim_frames):
         gait.append(0)
