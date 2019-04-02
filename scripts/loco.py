@@ -43,7 +43,7 @@ def createX(json):
 
     # Gait
     for i in range(w):  ##WILL NEED TO FIX LATER
-        gait_index = json["Gait"][i]
+        gait_index = json["Gait"][i]    # FINE while all set to test value, change to i*10 for full implementation
         if gait_index == 0: # Stand
             X[i+4*w] = 1.0
         if gait_index == 1: # Walk
@@ -61,14 +61,21 @@ def createX(json):
     X[10*w + jn*3: 10*w + jn*6] = json["JointVel"]  # Joint velocities
 
     # Trajectory heights
-    for i in range(w):
-        height_r = json["PathHeight"][i][0]
-        height_m = json["PathHeight"][i][1]
-        height_l = json["PathHeight"][i][2]
-        X[10*w + jn*6 + i] = height_r
-        X[11*w + jn*6 + i] = height_m
-        X[12*w + jn*6 + i] = height_l
+    for i in range(w/2):
+        past_h_r = json["PathHeight"][0][0]
+        height_r = json["PathHeight"][i*10][0]
+        past_h_m = json["PathHeight"][0][1]
+        height_m = json["PathHeight"][i*10][1]
+        past_h_l = json["PathHeight"][0][2]
+        height_l = json["PathHeight"][i*10][2]
 
+        X[10*w + jn*6 + i] = past_h_r
+        X[10*w + jn*6 + i + w/2] = height_r
+        X[11*w + jn*6 + i] = past_h_m
+        X[11*w + jn*6 + i + w/2] = height_m
+        X[12*w + jn*6 + i] = past_h_l
+        X[12*w + jn*6 + i + w/2] = height_l
+        
     X = X.tolist()
     return X
 
