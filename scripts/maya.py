@@ -9,7 +9,7 @@ import json
 # May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
 cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
-anim_frames = 100
+anim_frames = 800
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
@@ -145,7 +145,15 @@ def getGait():
     return gait
 
 def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits):
-    response = json.dumps({"AnimFrames": anim_frames, "PathPos": path_pos, "PathDir": path_dir, "PathHeight": path_heights, "JointPos": joint_pos, "JointVel": joint_vel, "Gait": path_gaits})
+    root_xform = getRootXform()
+    response = json.dumps({"AnimFrames": anim_frames,
+                           "PathPos": path_pos,
+                           "PathDir": path_dir,
+                           "PathHeight": path_heights,
+                           "JointPos": joint_pos,
+                           "JointVel": joint_vel,
+                           "Gait": path_gaits,
+                           "RootXform": root_xform})
     return response
 
 # def doPut(request):
