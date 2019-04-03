@@ -63,12 +63,12 @@ def createX(json):
 
     # Trajectory heights
     for i in range(w/2):
-        past_h_r = json["PathHeight"][0][0]
-        height_r = json["PathHeight"][i*10][0]
-        past_h_m = json["PathHeight"][0][1]
-        height_m = json["PathHeight"][i*10][1]
-        past_h_l = json["PathHeight"][0][2]
-        height_l = json["PathHeight"][i*10][2]
+        past_h_r = json["PathHeight"][0][0] - root_xform[1]
+        height_r = json["PathHeight"][i*10][0] - root_xform[1]
+        past_h_m = json["PathHeight"][0][1] - root_xform[1]
+        height_m = json["PathHeight"][i*10][1] - root_xform[1]
+        past_h_l = json["PathHeight"][0][2] - root_xform[1]
+        height_l = json["PathHeight"][i*10][2] - root_xform[1]
 
         X[10*w + jn*6 + i] = past_h_r
         X[10*w + jn*6 + i + w/2] = height_r
