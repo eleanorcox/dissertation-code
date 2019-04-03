@@ -123,7 +123,7 @@ def getJointPos():
     for joint in character.joints:
         joint_xform = cmds.xform(joint, worldSpace=True, query=True, translation=True)
         for i in range(len(joint_xform)):
-            joint_pos.append(root_xform[i] - joint_xform[i])
+            joint_pos.append(joint_xform[i] - root_xform[i])
 
     return joint_pos
 
