@@ -7,7 +7,7 @@ import maya.mel as mel
 import json
 
 # May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
-cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
+#cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
 anim_frames = 800
 
@@ -74,7 +74,6 @@ def getPathName():
     path = "curve1"     # Hardcoded
     return path
 
-### THINK this is how directions are used in pfnn, not sure
 # Returns a list of [dir x, dir z] pairs
 def getPathDir():
     path = getPathName()
@@ -85,14 +84,6 @@ def getPathDir():
         param = i * point_dist
         tangent = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedTangent=True)
         path_dir.append([tangent[0], tangent[2]])  # Only x and z coords needed
-
-    # path_dir = []
-    # for i in range(len(path_pos) - 1):
-    #     x_dir = path_pos[i+1][0] - path_pos[i][0]
-    #     z_dir = path_pos[i+1][1] - path_pos[i][1]
-    #     direction = [x_dir, z_dir]
-    #     path_dir.append(direction)
-    # path_dir.append([0,0]) # For final point on trajectory
 
     return path_dir
 
@@ -116,14 +107,14 @@ def getPathHeight():
 
 # Returns a list of joint positions local to root xform
 def getJointPos():
-    root_xform = getRootXform()
+    root_xform_pos = getRootXformPos()
     joint_pos = []
 
-    # Maybe need to add in root rotation (i.e. r_rot * (r_xform - j_xform))
+    # Maybe need to add in root rotation (i.e. r_rot * (r_xform_pos - j_pos))
     for joint in character.joints:
-        joint_xform = cmds.xform(joint, worldSpace=True, query=True, translation=True)
-        for i in range(len(joint_xform)):
-            joint_pos.append(joint_xform[i] - root_xform[i])
+        joint_pos = cmds.xform(joint, worldSpace=True, query=True, translation=True)
+        for i in range(len(joint_pos)):
+            joint_pos.append(joint_pos[i] - root_xform_pos[i])
 
     return joint_pos
 
@@ -145,7 +136,7 @@ def getGait():
     return gait
 
 def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits):
-    root_xform = getRootXform()
+    root_xform_pos = getRootXformPos()
     response = json.dumps({"AnimFrames": anim_frames,
                            "PathPos": path_pos,
                            "PathDir": path_dir,
@@ -153,7 +144,7 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
                            "JointPos": joint_pos,
                            "JointVel": joint_vel,
                            "Gait": path_gaits,
-                           "RootXform": root_xform})
+                           "RootXform": root_xform_pos})
     return response
 
 # def doPut(request):
@@ -193,24 +184,24 @@ def positionFromVelocity(initial_pos, velocity):
     return new_pos
 
 def moveRootXform(root_xform_x_vel, root_xform_z_vel):
-    root_xform = getRootXform()
-    new_x = positionFromVelocity(root_xform[0], root_xform_x_vel)
+    root_xform_pos = getRootXformPos()
+    new_x = positionFromVelocity(root_xform_pos[0], root_xform_x_vel)
     new_y = 0       # TODO: Hardcoded
-    new_z = positionFromVelocity(root_xform[2], root_xform_z_vel)
+    new_z = positionFromVelocity(root_xform_pos[2], root_xform_z_vel)
     cmds.move(new_x, new_y, new_z, character.root, worldSpace=True)
 
 def moveJoints(joint_pos):
     global character
-    root_xform = getRootXform()
+    root_xform_pos = getRootXformPos()
 
     for i in range(len(character.joints)):
         x_offset = joint_pos[i*3]
         y_offset = joint_pos[i*3+1]
         z_offset = joint_pos[i*3+2]
-        x_xform = root_xform[0] + x_offset
-        y_xform = root_xform[1] + y_offset
-        z_xform = root_xform[2] + z_offset
-        cmds.move(x_xform, y_xform, z_xform, character.joints[i], worldSpace=True)
+        x_pos = root_xform_pos[0] + x_offset
+        y_pos = root_xform_pos[1] + y_offset
+        z_pos = root_xform_pos[2] + z_offset
+        cmds.move(x_pos, y_pos, z_pos, character.joints[i], worldSpace=True)
 
 def setJointKeyframes():
     for joint in character.joints:
@@ -242,22 +233,54 @@ def getRootName():
             found = True
     return root
 
-def getRootXform():
+def getRootXformPos():
     ### TODO: HARDCODED NAMES
-    left_hip = "JOINT_LHipJoint"
-    right_hip = "JOINT_RHipJoint"
+    left_hip = "JOINT_LeftUpLeg"
+    right_hip = "JOINT_RightUpLeg"
+    l_hip_global_pos = cmds.xform(left_hip, worldSpace=True, query=True, translation=True)
+    r_hip_global_pos = cmds.xform(right_hip, worldSpace=True, query=True, translation=True)
 
-    left_world_xform = cmds.xform(left_hip, worldSpace=True, query=True, translation=True)
-    right_world_xform = cmds.xform(right_hip, worldSpace=True, query=True, translation=True)
-    hip_world_xform = [0,0,0]
-    for i in range(len(left_world_xform)):
-        hip_world_xform[i] = (left_world_xform[i]+right_world_xform[i]) / 2
+    mid_global_pos = [0,0,0]
+    for i in range(len(l_hip_global_pos)):
+        mid_global_pos[i] = (l_hip_global_pos[i] + r_hip_global_pos[i]) / 2
 
-    root_x = hip_world_xform[0]
+    root_x = mid_global_pos[0]
     root_y = 0                  # TODO: Hardcoded
-    root_z = hip_world_xform[2]
+    root_z = mid_global_pos[2]
 
     return [root_x, root_y, root_z]
+
+def crossProduct(a, b):
+    c = [a[1]*b[2] - a[2]*b[1],
+         a[2]*b[0] - a[0]*b[2],
+         a[0]*b[1] - a[1]*b[0]]
+    return c
+
+def getRootXformDir():
+    ### TODO: HARDCODED NAMES
+    left_hip = "JOINT_LeftUpLeg"
+    right_hip = "JOINT_RightUpLeg"
+    left_shoulder = "JOINT_LeftArm"
+    right_shoulder = "JOINT_RightArm"
+    l_hip_global_pos = cmds.xform(left_hip, worldSpace=True, query=True, translation=True)
+    r_hip_global_pos = cmds.xform(right_hip, worldSpace=True, query=True, translation=True)
+    l_shoulder_global_pos = cmds.xform(left_shoulder, worldSpace=True, query=True, translation=True)
+    r_shoulder_global_pos = cmds.xform(right_shoulder, worldSpace=True, query=True, translation=True)
+
+    v1 = []    # vector between the hips
+    v2 = []    # vector between the shoulders
+    for i in range(3):
+        v1.append(l_hip_global_pos[i] - r_hip_global_pos[i])
+        v2.append(l_shoulder_global_pos[i] - r_shoulder_global_pos[i])
+
+    v3 = []    # average of hip and shoulder vectors
+    for i in range(3):
+        v3.append((v1[i] + v2[i])/2)
+
+    # Facing direction: cross product between v3 and upward direction (0,1,0)
+    root_xform_dir = crossProduct(v3, [0, 1, 0])
+
+    return root_xform_dir
 
 character = Character()
 
