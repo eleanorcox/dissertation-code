@@ -6,10 +6,18 @@ import maya.cmds as cmds
 import maya.mel as mel
 import json
 
+anim_frames = 800
+
+# Names of joints stored here
+class Character():
+    def __init__(self):
+        self.root = getRootName()
+        self.joints = getJointNames([self.root], self.root)
+
+########## Server functions ##########
+
 # May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
 #cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
-
-anim_frames = 800
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
@@ -21,12 +29,6 @@ global proc string myServer(string $str){
 """
 
 mel.eval(melproc)
-
-# Names of joints stored here
-class Character():
-    def __init__(self):
-        self.root = getRootName()
-        self.joints = getJointNames([self.root], self.root)
 
 def myServer(str):
     json_str = str.replace("'", '"')
@@ -42,6 +44,8 @@ def myServer(str):
         doBuff(request)
         return "cheese, gromit!"
 
+########## GET requests ##########
+
 def doGet():
     # Get path info
     path_pos = getPathPos()
@@ -56,7 +60,7 @@ def doGet():
     response = formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits)
     return response
 
-# Returns a list of [pos x, pos z] pairs
+# Returns a list of WORLD SPACE [pos x, pos z] pairs
 def getPathPos():
     path = getPathName()
     point_dist = 1.0/anim_frames
@@ -65,16 +69,11 @@ def getPathPos():
     for i in range(anim_frames):
         param = i * point_dist
         pos = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, position=True)
-        path_pos.append([pos[0], pos[2]])  # Only x and z coords needed
+        path_pos.append([pos[0], pos[2]])
 
     return path_pos
 
-# TODO: get from user input
-def getPathName():
-    path = "curve1"     # Hardcoded
-    return path
-
-# Returns a list of [dir x, dir z] pairs
+# Returns a list of WORLD SPACE [dir x, dir z] pairs
 def getPathDir():
     path = getPathName()
     point_dist = 1.0/anim_frames
@@ -83,7 +82,7 @@ def getPathDir():
     for i in range(anim_frames):
         param = i * point_dist
         tangent = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedTangent=True)
-        path_dir.append([tangent[0], tangent[2]])  # Only x and z coords needed
+        path_dir.append([tangent[0], tangent[2]])
 
     return path_dir
 
@@ -137,6 +136,7 @@ def getGait():
 
 def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits):
     root_xform_pos = getRootXformPos()
+    root_xform_dir = getRootXformDir()
     response = json.dumps({"AnimFrames": anim_frames,
                            "PathPos": path_pos,
                            "PathDir": path_dir,
@@ -144,8 +144,11 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
                            "JointPos": joint_pos,
                            "JointVel": joint_vel,
                            "Gait": path_gaits,
-                           "RootXform": root_xform_pos})
+                           "RootPos": root_xform_pos,
+                           "RootDir": root_xform_dir})
     return response
+
+########## PUT requests ##########
 
 # def doPut(request):
 #     joint_pos, root_xform_x_vel, root_xform_z_vel = parsePut(request)
@@ -161,6 +164,8 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
 #     root_xform_z_vel = float(vel[1])
 #
 #     return joint_pos, root_xform_x_vel, root_xform_z_vel
+
+########## BUFF requests ##########
 
 def doBuff(request):
     setJointKeyframes()
@@ -178,11 +183,6 @@ def parseBuff(request):
     root_xform_z_vel = request["RootZ"]
     return joint_pos, root_xform_x_vel, root_xform_z_vel
 
-def positionFromVelocity(initial_pos, velocity):
-    time = 1    # maybe need frames? so 1/60?
-    new_pos = (velocity * time) + initial_pos
-    return new_pos
-
 def moveRootXform(root_xform_x_vel, root_xform_z_vel):
     root_xform_pos = getRootXformPos()
     new_x = positionFromVelocity(root_xform_pos[0], root_xform_x_vel)
@@ -195,7 +195,7 @@ def moveJoints(joint_pos):
     root_xform_pos = getRootXformPos()
 
     for i in range(len(character.joints)):
-        x_offset = joint_pos[i*3]
+        x_offset = joint_pos[i*3+0]
         y_offset = joint_pos[i*3+1]
         z_offset = joint_pos[i*3+2]
         x_pos = root_xform_pos[0] + x_offset
@@ -211,13 +211,9 @@ def updateFrame():
     now = cmds.currentTime(query=True)
     cmds.currentTime(now + 1)
 
-def getJointNames(joints, joint):
-    children = cmds.listRelatives(joint)
-    if children is not None:
-        for child in children:
-            joints.append(child)
-            joints = getJointNames(joints, child)
-    return joints
+########## Helper functions ##########
+
+### Joints ###
 
 def getRootName():
     joints = cmds.ls(type='joint')
@@ -232,6 +228,23 @@ def getRootName():
         elif parent is None:
             found = True
     return root
+
+def getJointNames(joints, joint):
+    children = cmds.listRelatives(joint)
+    if children is not None:
+        for child in children:
+            joints.append(child)
+            joints = getJointNames(joints, child)
+    return joints
+
+### Path ###
+
+# TODO: get from user input
+def getPathName():
+    path = "curve1"     # Hardcoded
+    return path
+
+### Root Xform ###
 
 def getRootXformPos():
     ### TODO: HARDCODED NAMES
@@ -249,12 +262,6 @@ def getRootXformPos():
     root_z = mid_global_pos[2]
 
     return [root_x, root_y, root_z]
-
-def crossProduct(a, b):
-    c = [a[1]*b[2] - a[2]*b[1],
-         a[2]*b[0] - a[0]*b[2],
-         a[0]*b[1] - a[1]*b[0]]
-    return c
 
 def getRootXformDir():
     ### TODO: HARDCODED NAMES
@@ -281,6 +288,19 @@ def getRootXformDir():
     root_xform_dir = crossProduct(v3, [0, 1, 0])
 
     return root_xform_dir
+
+### Other ###
+
+def crossProduct(a, b):
+    c = [a[1]*b[2] - a[2]*b[1],
+         a[2]*b[0] - a[0]*b[2],
+         a[0]*b[1] - a[1]*b[0]]
+    return c
+
+def positionFromVelocity(initial_pos, velocity):
+    time = 1    # maybe need frames? so 1/60?
+    new_pos = (velocity * time) + initial_pos
+    return new_pos
 
 character = Character()
 

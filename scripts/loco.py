@@ -20,14 +20,15 @@ def createX(json):
     X = np.zeros(XDIM)
     w = 12
     jn = 31
-    root_xform = json["RootXform"]  # [x, y, z] global coords
-
+    root_xform_pos = json["RootPos"]  # [x, y, z] worldspace coords
+    root_xform_dir = json["RootDir"]  # [x, y, z] worldspace directions
+    
     # Trajectory positions and directions
     for i in range(w/2):
-        past_posx = json["PathPos"][0][0] - root_xform[0]
-        posx = json["PathPos"][i*10][0] - root_xform[0]
-        past_posz = json["PathPos"][0][1] - root_xform[2]
-        posz = json["PathPos"][i*10][1] - root_xform[2]
+        past_posx = json["PathPos"][0][0] - root_xform_pos[0]
+        posx = json["PathPos"][i*10][0] - root_xform_pos[0]
+        past_posz = json["PathPos"][0][1] - root_xform_pos[2]
+        posz = json["PathPos"][i*10][1] - root_xform_pos[2]
         X[i+0*w/2] = past_posx
         X[i+1*w/2] = posx
         X[i+2*w/2] = past_posz
@@ -63,12 +64,12 @@ def createX(json):
 
     # Trajectory heights
     for i in range(w/2):
-        past_h_r = json["PathHeight"][0][0] - root_xform[1]
-        height_r = json["PathHeight"][i*10][0] - root_xform[1]
-        past_h_m = json["PathHeight"][0][1] - root_xform[1]
-        height_m = json["PathHeight"][i*10][1] - root_xform[1]
-        past_h_l = json["PathHeight"][0][2] - root_xform[1]
-        height_l = json["PathHeight"][i*10][2] - root_xform[1]
+        past_h_r = json["PathHeight"][0][0] - root_xform_pos[1]
+        height_r = json["PathHeight"][i*10][0] - root_xform_pos[1]
+        past_h_m = json["PathHeight"][0][1] - root_xform_pos[1]
+        height_m = json["PathHeight"][i*10][1] - root_xform_pos[1]
+        past_h_l = json["PathHeight"][0][2] - root_xform_pos[1]
+        height_l = json["PathHeight"][i*10][2] - root_xform_pos[1]
 
         X[10*w + jn*6 + i] = past_h_r
         X[10*w + jn*6 + i + w/2] = height_r
