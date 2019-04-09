@@ -13,8 +13,8 @@ test_maya_put = False
 XDIM = 342
 
 maya_address = ("localhost", 12345)
-pfnn_address = ("35.246.116.151", 54321) # google compute engine addr
-# pfnn_address = ("localhost", 54321)
+# pfnn_address = ("35.246.116.151", 54321) # google compute engine addr
+pfnn_address = ("localhost", 54321)
 
 def createX(json):
     X = np.zeros(XDIM)

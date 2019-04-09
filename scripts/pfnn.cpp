@@ -251,6 +251,24 @@ struct PFNN {
 
 static PFNN* pfnn = NULL;
 
+/* Character */
+
+struct Character {
+
+  enum { JOINT_NUM = 31 };
+
+  float phase;
+
+  glm::vec3 joint_positions[JOINT_NUM];
+  glm::vec3 joint_velocities[JOINT_NUM];
+
+	Character()
+    : phase(0) {}
+
+};
+
+static Character* character = NULL;
+
 std::string getRelevantYJson(int frame) {
 	int joint_num = 31;
 	float root_xform_x_vel = pfnn->Yp(0);
@@ -329,13 +347,17 @@ void processAnim(int sock) {
 
 int main(int argc, char **argv) {
 
-	/* Create and initialise PFNN */
+	/* Resources */
+
+	character = new Character();
+
 	pfnn = new PFNN(PFNN::MODE_CONSTANT);
 	//pfnn = new PFNN(PFNN::MODE_CUBIC);
 	//pfnn = new PFNN(PFNN::MODE_LINEAR);
 	pfnn->load();
 
 	/* Networking */
+
 	int sockfd, newsockfd, portno, pid;
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
@@ -381,9 +403,10 @@ int main(int argc, char **argv) {
 			close(newsockfd);
 	}
 
-
   /* Delete Resources */
+
   close(sockfd);
+	delete character;
   delete pfnn;
 
   return 0;
