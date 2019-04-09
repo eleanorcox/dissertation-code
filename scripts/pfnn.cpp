@@ -269,6 +269,37 @@ struct Character {
 
 static Character* character = NULL;
 
+/* Trajectory */
+
+struct Trajectory {
+
+  enum { LENGTH = 120 };
+
+  float width;
+
+  glm::vec3 positions[LENGTH];
+  glm::vec3 directions[LENGTH];
+  glm::mat3 rotations[LENGTH];
+  float heights[LENGTH];
+
+  float gait_stand[LENGTH];
+  float gait_walk[LENGTH];
+  float gait_jog[LENGTH];
+  float gait_crouch[LENGTH];
+  float gait_jump[LENGTH];
+  float gait_bump[LENGTH];
+
+  glm::vec3 target_dir, target_vel;
+
+  Trajectory()
+    : width(25)
+    , target_dir(glm::vec3(0,0,1))
+    , target_vel(glm::vec3(0)) {}
+
+};
+
+static Trajectory* trajectory = NULL;
+
 std::string getRelevantYJson(int frame) {
 	int joint_num = 31;
 	float root_xform_x_vel = pfnn->Yp(0);
@@ -350,6 +381,7 @@ int main(int argc, char **argv) {
 	/* Resources */
 
 	character = new Character();
+	trajectory = new Trajectory();
 
 	pfnn = new PFNN(PFNN::MODE_CONSTANT);
 	//pfnn = new PFNN(PFNN::MODE_CUBIC);
@@ -402,6 +434,7 @@ int main(int argc, char **argv) {
 
   close(sockfd);
 	delete character;
+	delete trajectory;
   delete pfnn;
 
   return 0;
