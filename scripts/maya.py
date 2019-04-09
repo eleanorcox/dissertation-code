@@ -107,15 +107,15 @@ def getPathHeight():
 # Returns a list of joint positions local to root xform
 def getJointPos():
     root_xform_pos = getRootXformPos()
-    joint_pos = []
+    joints_pos = []
 
     # Maybe need to add in root rotation (i.e. r_rot * (r_xform_pos - j_pos))
     for joint in character.joints:
         joint_pos = cmds.xform(joint, worldSpace=True, query=True, translation=True)
         for i in range(len(joint_pos)):
-            joint_pos.append(joint_pos[i] - root_xform_pos[i])
+            joints_pos.append(joint_pos[i] - root_xform_pos[i])
 
-    return joint_pos
+    return joints_pos
 
 # Returns a list of joint velocities local to root xform
 def getJointVel():
