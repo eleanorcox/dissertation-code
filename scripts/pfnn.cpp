@@ -358,21 +358,16 @@ int main(int argc, char **argv) {
 
 	/* Networking */
 
-	int sockfd, newsockfd, portno, pid;
+	int sockfd, newsockfd, pid;
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
-
-	if (argc < 2) {
-		fprintf(stderr,"ERROR, no port provided\n");
- 		exit(1);
-	}
+	int portno = 54321;
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);		//Or AF_UNIX
 	if (sockfd < 0)
   	error("ERROR opening socket");
 
 	bzero((char *) &serv_addr, sizeof(serv_addr));
-	portno = atoi(argv[1]);
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(portno);
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
