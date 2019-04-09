@@ -7,6 +7,7 @@ import maya.mel as mel
 import json
 
 anim_frames = 800
+server_on = False
 
 # Names of joints stored here
 class Character():
@@ -17,7 +18,8 @@ class Character():
 ########## Server functions ##########
 
 # May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
-#cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
+if server_on:
+    cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
