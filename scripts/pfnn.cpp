@@ -28,7 +28,7 @@ using json = nlohmann::json;
 
 /* Helper Functions */
 
-/* Error function for networking */
+// Error function for networking
 void error(const char *msg) {
 	perror(msg);
 	exit(1);
@@ -286,7 +286,7 @@ static Character* character = NULL;
 
 struct Trajectory {
 
-  enum { LENGTH = 120 };
+  enum { LENGTH = 12 };
 
   float width;
 
@@ -354,15 +354,15 @@ static void reset() {
 
 }
 
+/* Gets Relevant Info from Yp to send to Maya */
 
 std::string getRelevantYJson(int frame) {
-	int joint_num = 31;
-	float root_xform_x_vel = pfnn->Yp(0);
-	float root_xform_z_vel = pfnn->Yp(1);
+	float root_xform_x_vel	 = pfnn->Yp(0);
+	float root_xform_z_vel 	 = pfnn->Yp(1);
 	float root_xform_ang_vel = pfnn->Yp(2);
 
-	std::array<float, 93> joint_pos;
-	for (int i = 0; i < joint_num*3; i++) {
+	std::array<float, Character::JOINT_NUM*3> joint_pos;
+	for (int i = 0; i < Character::JOINT_NUM*3; i++) {
 		joint_pos[i] = pfnn->Yp(32+i);
 	}
 
@@ -377,6 +377,78 @@ std::string getRelevantYJson(int frame) {
 	y_json_str = y_json.dump();
 
 	return y_json_str;
+}
+
+void initialiseState(json json_msg) {
+
+	/* Initialise Trajectory Positions */
+	for(int i = 0; i < Trajectory::LENGTH; i++){
+		float x = json_msg["X"][Trajectory::LENGTH*0 + i];
+		float y = json_msg["X"][Trajectory::LENGTH*11 + Character::JOINT_NUM*6 + i];
+		float z = json_msg["X"][Trajectory::LENGTH*1 + i];
+		trajectory->positions[i] = glm::vec3(x, y, z);
+	}
+
+	/* Initialise Trajectory Rotations */
+	// TODO
+
+	/* Initialise Trajectory Directions */
+	for(int i = 0; i < Trajectory::LENGTH; i++){
+		float x = json_msg["X"][Trajectory::LENGTH*2 + i];
+		float y = 0.0;																			//TODO: hardcoded?
+		float z = json_msg["X"][Trajectory::LENGTH*3 + i];
+		trajectory->directions[i] = glm::vec3(x, y, z);
+	}
+
+	/* Initialise Gait */
+	for(int i = 0; i < Trajectory::LENGTH; i++){
+		trajectory->gait_stand[i]  = json_msg["X"][Trajectory::LENGTH*4 + i];
+		trajectory->gait_walk[i] 	 = json_msg["X"][Trajectory::LENGTH*5 + i];
+		trajectory->gait_jog[i] 	 = json_msg["X"][Trajectory::LENGTH*6 + i];
+		trajectory->gait_crouch[i] = json_msg["X"][Trajectory::LENGTH*7 + i];
+		trajectory->gait_jump[i] 	 = json_msg["X"][Trajectory::LENGTH*8 + i];
+		trajectory->gait_bump[i] 	 = json_msg["X"][Trajectory::LENGTH*9 + i];
+	}
+
+	/* Initialise Joint Positions */
+	for(int i = 0; i < Character::JOINT_NUM; i++){
+		float x = json_msg["X"][Trajectory::LENGTH + i*3 + 0];
+		float y = json_msg["X"][Trajectory::LENGTH + i*3 + 1];
+		float z = json_msg["X"][Trajectory::LENGTH + i*3 + 2];
+		character->joint_positions[i] = glm::vec3(x, y, z);
+	}
+
+	/* Initialise Joint Velocities */
+	for(int i = 0; i < Character::JOINT_NUM; i++){
+		float x = json_msg["X"][Trajectory::LENGTH + Character::JOINT_NUM*3 + i*3 + 0];
+		float y = json_msg["X"][Trajectory::LENGTH + Character::JOINT_NUM*3 + i*3 + 1];
+		float z = json_msg["X"][Trajectory::LENGTH + Character::JOINT_NUM*3 + i*3 + 2];
+		character->joint_velocities[i] = glm::vec3(x, y, z);
+	}
+
+	/* Initialise Trajectory Heights */
+	for(int i = 0; i < Trajectory::LENGTH; i++){
+		trajectory->heights[i] = json_msg["X"][Trajectory::LENGTH*11 + Character::JOINT_NUM*6 + i];
+	}
+}
+
+
+/* */
+
+void updateState(json json_msg) {
+	/* Update Trajectory Positions */
+
+	/* Update Trajectory Directions */
+
+	/* Update Gait */
+
+	/* Update Joint Positions */
+
+	/* Update Joint Velocities */
+
+	/* Update Trajectory Heights */
+
+	/* Update Phase */
 }
 
 /* A separate instance of this function is called for each connection */
@@ -401,34 +473,33 @@ void processAnim(int sock) {
 		}
 	}
 
-	std::cout << string_msg << "\n";
+	// std::cout << string_msg << "\n";
 
 	/* Update Xp based on input */
 	json json_msg = json::parse(string_msg);
 	std::array<float, PFNN::XDIM> x_in = json_msg["X"];
-
 	for (int i = 0; i < PFNN::XDIM; i++){
 		pfnn->Xp(i) = x_in[i];
 	}
 
-	/* Predict next frame */
-	// pfnn->predict(character->phase);
-	pfnn->predict(0);
+	/* Update character and trajectory based on input */
+	initialiseState(json_msg);
 
-	/* Extract relevant Y info, JSONify */
-	int currentFrame = 0;			//TODO: get and update this from x input
-	std::string y_out = getRelevantYJson(currentFrame);
+	for(int f = 0; f < json_msg["AnimFrames"]; f++){
+		/* Predict next frame */
+		pfnn->predict(character->phase);
 
-	/* Send y info */
-	n = send(sock, y_out.c_str(), y_out.length(),0);
-	if (n < 0) error("ERROR writing to socket");
+		/* Extract relevant Y info, JSONify */
+		std::string y_out = getRelevantYJson(f);
 
-	/* Update Xp based on Yp, initial Xp */
+		/* Send y info */
+		n = send(sock, y_out.c_str(), y_out.length(),0);
+		if (n < 0) error("ERROR writing to socket");
 
-	// Update Phase:::
-	//   character->phase = fmod(character->phase + (stand_amount * 0.9f + 0.1f) * 2*M_PI * pfnn->Yp(3), 2*M_PI);
+		/* Update Xp, character and trajectory */
+		updateState(json_msg);
+	}
 
-	/* Predict again, ... */
 }
 
 int main(int argc, char **argv) {
@@ -452,7 +523,7 @@ int main(int argc, char **argv) {
 	struct sockaddr_in serv_addr, cli_addr;
 	int portno = 54321;
 
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);		//Or AF_UNIX
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0)
   	error("ERROR opening socket");
 
@@ -466,6 +537,8 @@ int main(int argc, char **argv) {
 
 	listen(sockfd,5);
 	clilen = sizeof(cli_addr);
+
+	std::cout << "Listening...\n";
 
 	while(true){
 		newsockfd = accept(sockfd,
@@ -481,6 +554,7 @@ int main(int argc, char **argv) {
 		if (pid == 0){
 			close(sockfd);
 			processAnim(newsockfd);
+			reset();
 			exit(0);
 		}
 		else

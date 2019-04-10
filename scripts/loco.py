@@ -19,7 +19,7 @@ pfnn_address = ("localhost", 54321)
 def createX(json):
     X = np.zeros(XDIM)
     w = 12
-    jn = 31
+    j = 31
     root_xform_pos = json["RootPos"]  # [x, y, z] worldspace coords
     root_xform_dir = json["RootDir"]  # [x, y, z] worldspace directions
 
@@ -66,26 +66,26 @@ def createX(json):
         if gait_index == 4: # Jump
             X[i+8*w] = 1.0
         if gait_index == 5: # Unused
-            pass
+            X[i+9*w] = 1.0
 
-    X[10*w : 10*w + jn*3] = json["JointPos"]        # Joint positions
-    X[10*w + jn*3: 10*w + jn*6] = json["JointVel"]  # Joint velocities
+    X[10*w       : 10*w + j*3] = json["JointPos"]  # Joint positions
+    X[10*w + j*3 : 10*w + j*6] = json["JointVel"]  # Joint velocities
 
     # Trajectory heights
     for i in range(w/2):
         past_h_r = json["PathHeight"][0][0] - root_xform_pos[1]
-        height_r = json["PathHeight"][i*10][0] - root_xform_pos[1]
         past_h_m = json["PathHeight"][0][1] - root_xform_pos[1]
-        height_m = json["PathHeight"][i*10][1] - root_xform_pos[1]
         past_h_l = json["PathHeight"][0][2] - root_xform_pos[1]
+        height_r = json["PathHeight"][i*10][0] - root_xform_pos[1]
+        height_m = json["PathHeight"][i*10][1] - root_xform_pos[1]
         height_l = json["PathHeight"][i*10][2] - root_xform_pos[1]
 
-        X[10*w + jn*6 + i] = past_h_r
-        X[10*w + jn*6 + i + w/2] = height_r
-        X[11*w + jn*6 + i] = past_h_m
-        X[11*w + jn*6 + i + w/2] = height_m
-        X[12*w + jn*6 + i] = past_h_l
-        X[12*w + jn*6 + i + w/2] = height_l
+        X[10*w + j*6 + i] = past_h_r
+        X[11*w + j*6 + i] = past_h_m
+        X[12*w + j*6 + i] = past_h_l
+        X[10*w + j*6 + i + w/2] = height_r
+        X[11*w + j*6 + i + w/2] = height_m
+        X[12*w + j*6 + i + w/2] = height_l
 
     X = X.tolist()
     return X
