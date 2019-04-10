@@ -273,7 +273,7 @@ struct Character {
 
   glm::vec3 joint_positions[JOINT_NUM];
   glm::vec3 joint_velocities[JOINT_NUM];
-	glm::mat3 joint_rotations[JOINT_NUM];
+	// glm::mat3 joint_rotations[JOINT_NUM];
 
 	Character()
     : phase(0) {}
@@ -288,12 +288,11 @@ struct Trajectory {
 
   enum { LENGTH = 12 };
 
-  float width;
-
   glm::vec3 positions[LENGTH];
   glm::vec3 directions[LENGTH];
   glm::mat3 rotations[LENGTH];
   float heights[LENGTH];
+	// float heights[LENGTH][3];
 
   float gait_stand[LENGTH];
   float gait_walk[LENGTH];
@@ -305,8 +304,7 @@ struct Trajectory {
   glm::vec3 target_dir, target_vel;
 
   Trajectory()
-    : width(25)
-    , target_dir(glm::vec3(0,0,1))
+		: target_dir(glm::vec3(0,0,1))
     , target_vel(glm::vec3(0)) {}
 
 };
@@ -339,15 +337,15 @@ static void reset() {
 
     int opos = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*0);
     int ovel = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*1);
-    int orot = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*2);
+    // int orot = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*2);
 
     glm::vec3 pos = (root_rotation * glm::vec3(Yp(opos+i*3+0), Yp(opos+i*3+1), Yp(opos+i*3+2))) + root_position;
     glm::vec3 vel = (root_rotation * glm::vec3(Yp(ovel+i*3+0), Yp(ovel+i*3+1), Yp(ovel+i*3+2)));
-    glm::mat3 rot = (root_rotation * glm::toMat3(quat_exp(glm::vec3(Yp(orot+i*3+0), Yp(orot+i*3+1), Yp(orot+i*3+2)))));
+    // glm::mat3 rot = (root_rotation * glm::toMat3(quat_exp(glm::vec3(Yp(orot+i*3+0), Yp(orot+i*3+1), Yp(orot+i*3+2)))));
 
     character->joint_positions[i]  = pos;
     character->joint_velocities[i] = vel;
-    character->joint_rotations[i]  = rot;
+    // character->joint_rotations[i]  = rot;
   }
 
   character->phase = 0.0;
@@ -432,24 +430,80 @@ void initialiseState(json json_msg) {
 	}
 }
 
+void initialiseCharacter(json json_msg) {
 
-/* */
+	/* Initialise Joint Positions */
+	for(int i = 0; i < Character::JOINT_NUM; i++){
+		float x = json_msg["JointPos"][i*3 + 0];
+		float y = json_msg["JointPos"][i*3 + 1];
+		float z = json_msg["JointPos"][i*3 + 2];
+		character->joint_positions[i] = glm::vec3(x, y, z);
+	}
 
-void updateState(json json_msg) {
+	/* Initialise Joint Velocities */
+	for(int i = 0; i < Character::JOINT_NUM; i++){
+		float x = json_msg["JointVel"][i*3 + 0];
+		float y = json_msg["JointVel"][i*3 + 1];
+		float z = json_msg["JointVel"][i*3 + 2];
+		character->joint_velocities[i] = glm::vec3(x, y, z);
+	}
+
+	/* Initialise Joint Rotations */
+	// TODO
+}
+
+void initialiseTrajectory(json json_msg) {
+	std::cout << "in initialise trajectory\n";
+	/* Initialise Trajectory Positions */
+
+	/* Initialise Trajectory Directions */
+
+	/* Initialise Gait */
+
+	/* Initialise Trajectory Heights */
+}
+
+void updateXp() {
+	std::cout << "in update xp\n";
+	/* Input Trajectory Positions */
+
+	/* Input Trajectory Directions */
+
+	/* Input Gait */
+
+	/* Input Joint Positions */
+
+	/* Input Joint Velocities */
+
+	/* Input Trajectory Heights */
+}
+
+void updateCharacter() {
+	std::cout << "in update character\n";
+
+	/* Update Joint Positions */
+
+	/* Update Joint Velocities */
+
+	/* Update Joint Rotations */
+
+	/* Update Phase */
+
+}
+
+void updateTrajectory(json json_msg, int frame) {
+	std::cout << "in update trajectory\n";
+
 	/* Update Trajectory Positions */
 
 	/* Update Trajectory Directions */
 
 	/* Update Gait */
 
-	/* Update Joint Positions */
-
-	/* Update Joint Velocities */
-
 	/* Update Trajectory Heights */
 
-	/* Update Phase */
 }
+
 
 /* A separate instance of this function is called for each connection */
 void processAnim(int sock) {
@@ -474,18 +528,25 @@ void processAnim(int sock) {
 	}
 
 	// std::cout << string_msg << "\n";
+	json json_msg = json::parse(string_msg);
+
+	/* Initialise character and trajectory based on input */
+	// initialiseState(json_msg);
+	initialiseCharacter(json_msg);
+	initialiseTrajectory(json_msg);
 
 	/* Update Xp based on input */
-	json json_msg = json::parse(string_msg);
-	std::array<float, PFNN::XDIM> x_in = json_msg["X"];
-	for (int i = 0; i < PFNN::XDIM; i++){
-		pfnn->Xp(i) = x_in[i];
-	}
+	// std::array<float, PFNN::XDIM> x_in = json_msg["X"];
+	// for (int i = 0; i < PFNN::XDIM; i++){
+	// 	pfnn->Xp(i) = x_in[i];
+	// }
 
-	/* Update character and trajectory based on input */
-	initialiseState(json_msg);
+	// for(int f = 0; f < json_msg["AnimFrames"]; f++){
+	for(int f = 0; f < 3; f++){
 
-	for(int f = 0; f < json_msg["AnimFrames"]; f++){
+		/* Update Xp based on character and trajectory */
+		updateXp();
+
 		/* Predict next frame */
 		pfnn->predict(character->phase);
 
@@ -496,9 +557,13 @@ void processAnim(int sock) {
 		n = send(sock, y_out.c_str(), y_out.length(),0);
 		if (n < 0) error("ERROR writing to socket");
 
-		/* Update Xp, character and trajectory */
-		updateState(json_msg);
+		/* Update character and trajectory */
+		updateCharacter();
+		updateTrajectory(json_msg, f);
 	}
+
+	n = send(sock,"#",1,0);
+	if (n < 0) error("ERROR writing to socket");
 
 }
 
