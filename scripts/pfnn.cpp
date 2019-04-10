@@ -26,10 +26,22 @@
 using namespace Eigen;
 using json = nlohmann::json;
 
+/* Helper Functions */
+
 /* Error function for networking */
 void error(const char *msg) {
 	perror(msg);
 	exit(1);
+}
+
+static glm::quat quat_exp(glm::vec3 l) {
+  float w = glm::length(l);
+  glm::quat q = w < 0.01 ? glm::quat(1,0,0,0) : glm::quat(
+    cosf(w),
+    l.x * (sinf(w) / w),
+    l.y * (sinf(w) / w),
+    l.z * (sinf(w) / w));
+  return q / sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
 }
 
 /* Phase-Functioned Neural Network */
@@ -261,6 +273,7 @@ struct Character {
 
   glm::vec3 joint_positions[JOINT_NUM];
   glm::vec3 joint_velocities[JOINT_NUM];
+	glm::mat3 joint_rotations[JOINT_NUM];
 
 	Character()
     : phase(0) {}
@@ -299,6 +312,48 @@ struct Trajectory {
 };
 
 static Trajectory* trajectory = NULL;
+
+/* Reset */
+
+static void reset() {
+
+  ArrayXf Yp = pfnn->Ymean;
+
+	glm::vec3 root_position = glm::vec3(0,0,0);
+  glm::mat3 root_rotation = glm::mat3();
+
+  for (int i = 0; i < Trajectory::LENGTH; i++) {
+    trajectory->positions[i] = root_position;
+    trajectory->rotations[i] = root_rotation;
+    trajectory->directions[i] = glm::vec3(0,0,1);
+    trajectory->heights[i] = root_position.y;
+    trajectory->gait_stand[i] = 0.0;
+    trajectory->gait_walk[i] = 0.0;
+    trajectory->gait_jog[i] = 0.0;
+    trajectory->gait_crouch[i] = 0.0;
+    trajectory->gait_jump[i] = 0.0;
+    trajectory->gait_bump[i] = 0.0;
+  }
+
+  for (int i = 0; i < Character::JOINT_NUM; i++) {
+
+    int opos = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*0);
+    int ovel = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*1);
+    int orot = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*2);
+
+    glm::vec3 pos = (root_rotation * glm::vec3(Yp(opos+i*3+0), Yp(opos+i*3+1), Yp(opos+i*3+2))) + root_position;
+    glm::vec3 vel = (root_rotation * glm::vec3(Yp(ovel+i*3+0), Yp(ovel+i*3+1), Yp(ovel+i*3+2)));
+    glm::mat3 rot = (root_rotation * glm::toMat3(quat_exp(glm::vec3(Yp(orot+i*3+0), Yp(orot+i*3+1), Yp(orot+i*3+2)))));
+
+    character->joint_positions[i]  = pos;
+    character->joint_velocities[i] = vel;
+    character->joint_rotations[i]  = rot;
+  }
+
+  character->phase = 0.0;
+
+}
+
 
 std::string getRelevantYJson(int frame) {
 	int joint_num = 31;
@@ -387,6 +442,8 @@ int main(int argc, char **argv) {
 	//pfnn = new PFNN(PFNN::MODE_CUBIC);
 	//pfnn = new PFNN(PFNN::MODE_LINEAR);
 	pfnn->load();
+
+	reset();
 
 	/* Networking */
 
