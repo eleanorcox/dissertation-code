@@ -271,9 +271,8 @@ struct Character {
 
   float phase;
 
-  glm::vec3 joint_positions[JOINT_NUM];
-  glm::vec3 joint_velocities[JOINT_NUM];
-	// glm::mat3 joint_rotations[JOINT_NUM];
+  glm::vec3 joint_positions[JOINT_NUM];		// Local to charcater root transform
+  glm::vec3 joint_velocities[JOINT_NUM];	// Local to character root transform
 
 	Character()
     : phase(0) {}
@@ -286,13 +285,12 @@ static Character* character = NULL;
 
 struct Trajectory {
 
-  enum { LENGTH = 12 };
+  enum { LENGTH = 120 };
 
-  glm::vec3 positions[LENGTH];
-  glm::vec3 directions[LENGTH];
-  glm::mat3 rotations[LENGTH];
-  float heights[LENGTH];
-	// float heights[LENGTH][3];
+  glm::vec3 positions[LENGTH];		// World space
+  glm::vec3 directions[LENGTH];		// World space
+  glm::mat3 rotations[LENGTH];		// World space
+	float heights[LENGTH][3];				// World space
 
   float gait_stand[LENGTH];
   float gait_walk[LENGTH];
@@ -317,14 +315,16 @@ static void reset() {
 
   ArrayXf Yp = pfnn->Ymean;
 
-	glm::vec3 root_position = glm::vec3(0,0,0);
+	glm::vec3 root_position = glm::vec3(0.0, 0.0, 0.0);
   glm::mat3 root_rotation = glm::mat3();
 
   for (int i = 0; i < Trajectory::LENGTH; i++) {
     trajectory->positions[i] = root_position;
     trajectory->rotations[i] = root_rotation;
-    trajectory->directions[i] = glm::vec3(0,0,1);
-    trajectory->heights[i] = root_position.y;
+    trajectory->directions[i] = glm::vec3(0.0, 0.0, 1.0);
+    trajectory->heights[i][0] = root_position.y;
+		trajectory->heights[i][1] = root_position.y;
+		trajectory->heights[i][2] = root_position.y;
     trajectory->gait_stand[i] = 0.0;
     trajectory->gait_walk[i] = 0.0;
     trajectory->gait_jog[i] = 0.0;
@@ -424,14 +424,13 @@ void initialiseState(json json_msg) {
 		character->joint_velocities[i] = glm::vec3(x, y, z);
 	}
 
-	/* Initialise Trajectory Heights */
-	for(int i = 0; i < Trajectory::LENGTH; i++){
-		trajectory->heights[i] = json_msg["X"][Trajectory::LENGTH*11 + Character::JOINT_NUM*6 + i];
-	}
+	// /* Initialise Trajectory Heights */
+	// for(int i = 0; i < Trajectory::LENGTH; i++){
+	// 	trajectory->heights[i] = json_msg["X"][Trajectory::LENGTH*11 + Character::JOINT_NUM*6 + i];
+	// }
 }
 
 void initialiseCharacter(json json_msg) {
-
 	/* Initialise Joint Positions */
 	for(int i = 0; i < Character::JOINT_NUM; i++){
 		float x = json_msg["JointPos"][i*3 + 0];
@@ -447,20 +446,173 @@ void initialiseCharacter(json json_msg) {
 		float z = json_msg["JointVel"][i*3 + 2];
 		character->joint_velocities[i] = glm::vec3(x, y, z);
 	}
-
-	/* Initialise Joint Rotations */
-	// TODO
 }
 
 void initialiseTrajectory(json json_msg) {
 	std::cout << "in initialise trajectory\n";
+
+	// TODO: assumes character starts exactly on trajectory. what if this is not the case?
+	// Trajectory has to originate from character root position. edit in Maya to force this to be the case.
+
+	glm::vec3 root_position = glm::vec3(json_msg["RootPos"][0], json_msg["RootPos"][1], json_msg["RootPos"][2]);
+	glm::vec3 root_xform_dir = glm::vec3(json_msg["RootDir"][0], json_msg["RootDir"][1], json_msg["RootDir"][2]);
+
+	float theta = atan2f(root_xform_dir.x, root_xform_dir.z);
+	glm::mat3 rotation_matrix = glm::mat3(glm::rotate(theta, glm::vec3(0,1,0)));
+
 	/* Initialise Trajectory Positions */
+	for(int i = 0; i < Trajectory::LENGTH/2; i++){
+		float past_posx = json_msg["PathPos"][0][0];
+		float past_posy = json_msg["PathHeight"][0][1];
+		float past_posz = json_msg["PathPos"][0][1];
+		trajectory->positions[i] = glm::vec3(past_posx, past_posy, past_posz);
+
+		float posx = json_msg["PathPos"][i][0];
+		float posy = json_msg["PathHeight"][i][1];
+		float posz = json_msg["PathPos"][i][1];
+		trajectory->positions[Trajectory::LENGTH/2 + i] = glm::vec3(posx, posy, posz);
+	}
 
 	/* Initialise Trajectory Directions */
+	for(int i = 0; i < Trajectory::LENGTH/2; i++){
+		float past_dirx = json_msg["PathDir"][0][0];
+		float past_diry = 0.0;
+		float past_dirz = json_msg["PathDir"][0][1];
+		trajectory->directions[i] = glm::vec3(past_dirx, past_diry, past_dirz);
 
-	/* Initialise Gait */
+		float dirx = json_msg["PathDir"][i][0];
+		float diry = 0.0;
+		float dirz = json_msg["PathDir"][i][1];
+		trajectory->directions[Trajectory::LENGTH/2 + i] = glm::vec3(dirx, diry, dirz);
+	}
+
+	/* Initialise Trajectory Rotations */
+	for(int i = 0; i < Trajectory::LENGTH; i++){
+		trajectory->rotations[i] = glm::mat3(glm::rotate(atan2f(
+			trajectory->directions[i].x,
+			trajectory->directions[i].z), glm::vec3(0,1,0)));
+	}
 
 	/* Initialise Trajectory Heights */
+	for(int i = 0; i < Trajectory::LENGTH/2; i++){
+		float past_height_l = json_msg["PathHeight"][0][0];
+		float past_height_c = json_msg["PathHeight"][0][1];
+		float past_height_r = json_msg["PathHeight"][0][2];
+		trajectory->heights[i][0] = past_height_l;
+		trajectory->heights[i][1] = past_height_c;
+		trajectory->heights[i][2] = past_height_r;
+
+		float height_l = json_msg["PathHeight"][i][0];
+		float height_c = json_msg["PathHeight"][i][1];
+		float height_r = json_msg["PathHeight"][i][2];
+		trajectory->heights[Trajectory::LENGTH/2 + i][0] = height_l;
+		trajectory->heights[Trajectory::LENGTH/2 + i][1] = height_c;
+		trajectory->heights[Trajectory::LENGTH/2 + i][2] = height_r;
+	}
+
+	/* Initialise Gait */
+	for(int i = 0; i < Trajectory::LENGTH/2; i++){
+		float past_gait_index = json_msg["Gait"][0];
+		if(past_gait_index == 0) {
+			trajectory->gait_stand[i]  = 1.0;
+			trajectory->gait_walk[i] 	 = 0.0;
+			trajectory->gait_jog[i] 	 = 0.0;
+			trajectory->gait_crouch[i] = 0.0;
+			trajectory->gait_jump[i] 	 = 0.0;
+			trajectory->gait_bump[i] 	 = 0.0;
+		}
+		if(past_gait_index == 1) {
+			trajectory->gait_stand[i]  = 0.0;
+			trajectory->gait_walk[i] 	 = 1.0;
+			trajectory->gait_jog[i] 	 = 0.0;
+			trajectory->gait_crouch[i] = 0.0;
+			trajectory->gait_jump[i] 	 = 0.0;
+			trajectory->gait_bump[i] 	 = 0.0;
+		}
+		if(past_gait_index == 2) {
+			trajectory->gait_stand[i]  = 0.0;
+			trajectory->gait_walk[i] 	 = 0.0;
+			trajectory->gait_jog[i] 	 = 1.0;
+			trajectory->gait_crouch[i] = 0.0;
+			trajectory->gait_jump[i] 	 = 0.0;
+			trajectory->gait_bump[i] 	 = 0.0;
+		}
+		if(past_gait_index == 3) {
+			trajectory->gait_stand[i]  = 0.0;
+			trajectory->gait_walk[i] 	 = 0.0;
+			trajectory->gait_jog[i] 	 = 0.0;
+			trajectory->gait_crouch[i] = 1.0;
+			trajectory->gait_jump[i] 	 = 0.0;
+			trajectory->gait_bump[i] 	 = 0.0;
+		}
+		if(past_gait_index == 4) {
+			trajectory->gait_stand[i]  = 0.0;
+			trajectory->gait_walk[i] 	 = 0.0;
+			trajectory->gait_jog[i] 	 = 0.0;
+			trajectory->gait_crouch[i] = 0.0;
+			trajectory->gait_jump[i] 	 = 1.0;
+			trajectory->gait_bump[i] 	 = 0.0;
+		}
+		if(past_gait_index == 5) {
+			trajectory->gait_stand[i]  = 0.0;
+			trajectory->gait_walk[i] 	 = 0.0;
+			trajectory->gait_jog[i] 	 = 0.0;
+			trajectory->gait_crouch[i] = 0.0;
+			trajectory->gait_jump[i] 	 = 0.0;
+			trajectory->gait_bump[i] 	 = 1.0;
+		}
+
+		float gait_index = json_msg["Gait"][i];
+		if(gait_index == 0) {
+			trajectory->gait_stand[Trajectory::LENGTH/2 + i]  = 1.0;
+			trajectory->gait_walk[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_jog[Trajectory::LENGTH/2 + i] 	  = 0.0;
+			trajectory->gait_crouch[Trajectory::LENGTH/2 + i] = 0.0;
+			trajectory->gait_jump[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_bump[Trajectory::LENGTH/2 + i] 	= 0.0;
+		}
+		if(gait_index == 1) {
+			trajectory->gait_stand[Trajectory::LENGTH/2 + i]  = 0.0;
+			trajectory->gait_walk[Trajectory::LENGTH/2 + i] 	= 1.0;
+			trajectory->gait_jog[Trajectory::LENGTH/2 + i] 	  = 0.0;
+			trajectory->gait_crouch[Trajectory::LENGTH/2 + i] = 0.0;
+			trajectory->gait_jump[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_bump[Trajectory::LENGTH/2 + i] 	= 0.0;
+		}
+		if(gait_index == 2) {
+			trajectory->gait_stand[Trajectory::LENGTH/2 + i]  = 0.0;
+			trajectory->gait_walk[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_jog[Trajectory::LENGTH/2 + i] 	  = 1.0;
+			trajectory->gait_crouch[Trajectory::LENGTH/2 + i] = 0.0;
+			trajectory->gait_jump[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_bump[Trajectory::LENGTH/2 + i] 	= 0.0;
+		}
+		if(gait_index == 3) {
+			trajectory->gait_stand[Trajectory::LENGTH/2 + i]  = 0.0;
+			trajectory->gait_walk[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_jog[Trajectory::LENGTH/2 + i] 	  = 0.0;
+			trajectory->gait_crouch[Trajectory::LENGTH/2 + i] = 1.0;
+			trajectory->gait_jump[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_bump[Trajectory::LENGTH/2 + i] 	= 0.0;
+		}
+		if(gait_index == 4) {
+			trajectory->gait_stand[Trajectory::LENGTH/2 + i]  = 0.0;
+			trajectory->gait_walk[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_jog[Trajectory::LENGTH/2 + i] 	  = 0.0;
+			trajectory->gait_crouch[Trajectory::LENGTH/2 + i] = 0.0;
+			trajectory->gait_jump[Trajectory::LENGTH/2 + i] 	= 1.0;
+			trajectory->gait_bump[Trajectory::LENGTH/2 + i] 	= 0.0;
+		}
+		if(gait_index == 5) {
+			trajectory->gait_stand[Trajectory::LENGTH/2 + i]  = 0.0;
+			trajectory->gait_walk[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_jog[Trajectory::LENGTH/2 + i] 	  = 0.0;
+			trajectory->gait_crouch[Trajectory::LENGTH/2 + i] = 0.0;
+			trajectory->gait_jump[Trajectory::LENGTH/2 + i] 	= 0.0;
+			trajectory->gait_bump[Trajectory::LENGTH/2 + i] 	= 1.0;
+		}
+	}
+
 }
 
 void updateXp() {

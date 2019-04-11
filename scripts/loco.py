@@ -157,7 +157,7 @@ if test_pfnn_send:
     print("Closing socket to PFNN")
     sock.close()
 
-    json_response = json.loads(response)
+    # json_response = json.loads(response)
 
 if test_maya_put:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
