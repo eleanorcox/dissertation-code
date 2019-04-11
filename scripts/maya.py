@@ -89,7 +89,7 @@ def getPathDir():
     return path_dir
 
 # TODO: implement properly later
-# Returns a list of [l, c, r] heights of the left, central and right sample points on the path, local to the root xform
+# Returns a list of [r, c, l] heights of the left, central and right sample points on the path, local to the root xform
 def getPathHeight():
     # path = getPathName()
     # point_dist = 1.0/anim_frames
@@ -106,16 +106,28 @@ def getPathHeight():
         path_heights.append([0, 0, 0])
     return path_heights
 
-# Returns a list of joint positions local to root xform
+# # Returns a list of joint positions local to root xform
+# def getJointPos():
+#     root_xform_pos = getRootXformPos()
+#     joints_pos = []
+#
+#     # Maybe need to add in root rotation (i.e. r_rot * (r_xform_pos - j_pos))
+#     for joint in character.joints:
+#         joint_pos = cmds.xform(joint, worldSpace=True, query=True, translation=True)
+#         for i in range(len(joint_pos)):
+#             joints_pos.append(joint_pos[i] - root_xform_pos[i])
+#
+#     return joints_pos
+
+# Returns a list of world space joint positions
 def getJointPos():
     root_xform_pos = getRootXformPos()
     joints_pos = []
 
-    # Maybe need to add in root rotation (i.e. r_rot * (r_xform_pos - j_pos))
     for joint in character.joints:
         joint_pos = cmds.xform(joint, worldSpace=True, query=True, translation=True)
         for i in range(len(joint_pos)):
-            joints_pos.append(joint_pos[i] - root_xform_pos[i])
+            joints_pos.append(joint_pos[i])
 
     return joints_pos
 

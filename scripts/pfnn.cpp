@@ -271,8 +271,8 @@ struct Character {
 
   float phase;
 
-  glm::vec3 joint_positions[JOINT_NUM];		// Local to charcater root transform
-  glm::vec3 joint_velocities[JOINT_NUM];	// Local to character root transform
+  glm::vec3 joint_positions[JOINT_NUM];		// World space
+  glm::vec3 joint_velocities[JOINT_NUM];	// World space
 
 	Character()
     : phase(0) {}
@@ -334,18 +334,14 @@ static void reset() {
   }
 
   for (int i = 0; i < Character::JOINT_NUM; i++) {
-
     int opos = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*0);
     int ovel = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*1);
-    // int orot = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*2);
 
     glm::vec3 pos = (root_rotation * glm::vec3(Yp(opos+i*3+0), Yp(opos+i*3+1), Yp(opos+i*3+2))) + root_position;
     glm::vec3 vel = (root_rotation * glm::vec3(Yp(ovel+i*3+0), Yp(ovel+i*3+1), Yp(ovel+i*3+2)));
-    // glm::mat3 rot = (root_rotation * glm::toMat3(quat_exp(glm::vec3(Yp(orot+i*3+0), Yp(orot+i*3+1), Yp(orot+i*3+2)))));
 
     character->joint_positions[i]  = pos;
     character->joint_velocities[i] = vel;
-    // character->joint_rotations[i]  = rot;
   }
 
   character->phase = 0.0;
@@ -377,60 +373,10 @@ std::string getRelevantYJson(int frame) {
 	return y_json_str;
 }
 
-void initialiseState(json json_msg) {
-
-	/* Initialise Trajectory Positions */
-	for(int i = 0; i < Trajectory::LENGTH; i++){
-		float x = json_msg["X"][Trajectory::LENGTH*0 + i];
-		float y = json_msg["X"][Trajectory::LENGTH*11 + Character::JOINT_NUM*6 + i];
-		float z = json_msg["X"][Trajectory::LENGTH*1 + i];
-		trajectory->positions[i] = glm::vec3(x, y, z);
-	}
-
-	/* Initialise Trajectory Rotations */
-	// TODO
-
-	/* Initialise Trajectory Directions */
-	for(int i = 0; i < Trajectory::LENGTH; i++){
-		float x = json_msg["X"][Trajectory::LENGTH*2 + i];
-		float y = 0.0;																			//TODO: hardcoded?
-		float z = json_msg["X"][Trajectory::LENGTH*3 + i];
-		trajectory->directions[i] = glm::vec3(x, y, z);
-	}
-
-	/* Initialise Gait */
-	for(int i = 0; i < Trajectory::LENGTH; i++){
-		trajectory->gait_stand[i]  = json_msg["X"][Trajectory::LENGTH*4 + i];
-		trajectory->gait_walk[i] 	 = json_msg["X"][Trajectory::LENGTH*5 + i];
-		trajectory->gait_jog[i] 	 = json_msg["X"][Trajectory::LENGTH*6 + i];
-		trajectory->gait_crouch[i] = json_msg["X"][Trajectory::LENGTH*7 + i];
-		trajectory->gait_jump[i] 	 = json_msg["X"][Trajectory::LENGTH*8 + i];
-		trajectory->gait_bump[i] 	 = json_msg["X"][Trajectory::LENGTH*9 + i];
-	}
-
-	/* Initialise Joint Positions */
-	for(int i = 0; i < Character::JOINT_NUM; i++){
-		float x = json_msg["X"][Trajectory::LENGTH + i*3 + 0];
-		float y = json_msg["X"][Trajectory::LENGTH + i*3 + 1];
-		float z = json_msg["X"][Trajectory::LENGTH + i*3 + 2];
-		character->joint_positions[i] = glm::vec3(x, y, z);
-	}
-
-	/* Initialise Joint Velocities */
-	for(int i = 0; i < Character::JOINT_NUM; i++){
-		float x = json_msg["X"][Trajectory::LENGTH + Character::JOINT_NUM*3 + i*3 + 0];
-		float y = json_msg["X"][Trajectory::LENGTH + Character::JOINT_NUM*3 + i*3 + 1];
-		float z = json_msg["X"][Trajectory::LENGTH + Character::JOINT_NUM*3 + i*3 + 2];
-		character->joint_velocities[i] = glm::vec3(x, y, z);
-	}
-
-	// /* Initialise Trajectory Heights */
-	// for(int i = 0; i < Trajectory::LENGTH; i++){
-	// 	trajectory->heights[i] = json_msg["X"][Trajectory::LENGTH*11 + Character::JOINT_NUM*6 + i];
-	// }
-}
+/* Initialie character and trajectory from input from loco */
 
 void initialiseCharacter(json json_msg) {
+
 	/* Initialise Joint Positions */
 	for(int i = 0; i < Character::JOINT_NUM; i++){
 		float x = json_msg["JointPos"][i*3 + 0];
@@ -449,16 +395,17 @@ void initialiseCharacter(json json_msg) {
 }
 
 void initialiseTrajectory(json json_msg) {
-	std::cout << "in initialise trajectory\n";
 
 	// TODO: assumes character starts exactly on trajectory. what if this is not the case?
 	// Trajectory has to originate from character root position. edit in Maya to force this to be the case.
-
+	// Following block of code is for using the root position, direction and rotation directly from the character.
+	/*
 	glm::vec3 root_position = glm::vec3(json_msg["RootPos"][0], json_msg["RootPos"][1], json_msg["RootPos"][2]);
 	glm::vec3 root_xform_dir = glm::vec3(json_msg["RootDir"][0], json_msg["RootDir"][1], json_msg["RootDir"][2]);
 
 	float theta = atan2f(root_xform_dir.x, root_xform_dir.z);
 	glm::mat3 rotation_matrix = glm::mat3(glm::rotate(theta, glm::vec3(0,1,0)));
+	*/
 
 	/* Initialise Trajectory Positions */
 	for(int i = 0; i < Trajectory::LENGTH/2; i++){
@@ -495,19 +442,19 @@ void initialiseTrajectory(json json_msg) {
 
 	/* Initialise Trajectory Heights */
 	for(int i = 0; i < Trajectory::LENGTH/2; i++){
-		float past_height_l = json_msg["PathHeight"][0][0];
+		float past_height_r = json_msg["PathHeight"][0][0];
 		float past_height_c = json_msg["PathHeight"][0][1];
-		float past_height_r = json_msg["PathHeight"][0][2];
-		trajectory->heights[i][0] = past_height_l;
+		float past_height_l = json_msg["PathHeight"][0][2];
+		trajectory->heights[i][0] = past_height_r;
 		trajectory->heights[i][1] = past_height_c;
-		trajectory->heights[i][2] = past_height_r;
+		trajectory->heights[i][2] = past_height_l;
 
-		float height_l = json_msg["PathHeight"][i][0];
+		float height_r = json_msg["PathHeight"][i][0];
 		float height_c = json_msg["PathHeight"][i][1];
-		float height_r = json_msg["PathHeight"][i][2];
-		trajectory->heights[Trajectory::LENGTH/2 + i][0] = height_l;
+		float height_l = json_msg["PathHeight"][i][2];
+		trajectory->heights[Trajectory::LENGTH/2 + i][0] = height_r;
 		trajectory->heights[Trajectory::LENGTH/2 + i][1] = height_c;
-		trajectory->heights[Trajectory::LENGTH/2 + i][2] = height_r;
+		trajectory->heights[Trajectory::LENGTH/2 + i][2] = height_l;
 	}
 
 	/* Initialise Gait */
@@ -615,20 +562,68 @@ void initialiseTrajectory(json json_msg) {
 
 }
 
-void updateXp() {
-	std::cout << "in update xp\n";
-	/* Input Trajectory Positions */
+/* Input the values for Xp in the PFNN */
 
-	/* Input Trajectory Directions */
+void inputXp() {
+
+	glm::vec3 root_position = glm::vec3(
+    trajectory->positions[Trajectory::LENGTH/2].x,
+    trajectory->heights[Trajectory::LENGTH/2][1],
+    trajectory->positions[Trajectory::LENGTH/2].z);
+
+  glm::mat3 root_rotation = trajectory->rotations[Trajectory::LENGTH/2];
+
+	/* Input Trajectory Positions / Directions */
+	for (int i = 0; i < Trajectory::LENGTH; i+=10) {
+    int w = (Trajectory::LENGTH)/10;
+    glm::vec3 pos = glm::inverse(root_rotation) * (trajectory->positions[i] - root_position);
+    glm::vec3 dir = glm::inverse(root_rotation) * trajectory->directions[i];
+    pfnn->Xp((w*0)+i/10) = pos.x; pfnn->Xp((w*1)+i/10) = pos.z;
+    pfnn->Xp((w*2)+i/10) = dir.x; pfnn->Xp((w*3)+i/10) = dir.z;
+  }
 
 	/* Input Gait */
+	for (int i = 0; i < Trajectory::LENGTH; i+=10) {
+    int w = (Trajectory::LENGTH)/10;
+    pfnn->Xp((w*4)+i/10) = trajectory->gait_stand[i];
+    pfnn->Xp((w*5)+i/10) = trajectory->gait_walk[i];
+    pfnn->Xp((w*6)+i/10) = trajectory->gait_jog[i];
+    pfnn->Xp((w*7)+i/10) = trajectory->gait_crouch[i];
+    pfnn->Xp((w*8)+i/10) = trajectory->gait_jump[i];
+    pfnn->Xp((w*9)+i/10) = 0.0; // Unused.
+  }
 
-	/* Input Joint Positions */
+	/* Input Joint Previous Positions / Velocities */
+  glm::vec3 prev_root_position = glm::vec3(
+    trajectory->positions[Trajectory::LENGTH/2-1].x,
+    trajectory->heights[Trajectory::LENGTH/2-1][1],
+    trajectory->positions[Trajectory::LENGTH/2-1].z);
 
-	/* Input Joint Velocities */
+  glm::mat3 prev_root_rotation = trajectory->rotations[Trajectory::LENGTH/2-1];
+
+  for (int i = 0; i < Character::JOINT_NUM; i++) {
+    int o = (((Trajectory::LENGTH)/10)*10);
+    glm::vec3 pos = glm::inverse(prev_root_rotation) * (character->joint_positions[i] - prev_root_position);
+    glm::vec3 prv = glm::inverse(prev_root_rotation) *  character->joint_velocities[i];
+    pfnn->Xp(o+(Character::JOINT_NUM*3*0)+i*3+0) = pos.x;
+    pfnn->Xp(o+(Character::JOINT_NUM*3*0)+i*3+1) = pos.y;
+    pfnn->Xp(o+(Character::JOINT_NUM*3*0)+i*3+2) = pos.z;
+    pfnn->Xp(o+(Character::JOINT_NUM*3*1)+i*3+0) = prv.x;
+    pfnn->Xp(o+(Character::JOINT_NUM*3*1)+i*3+1) = prv.y;
+    pfnn->Xp(o+(Character::JOINT_NUM*3*1)+i*3+2) = prv.z;
+  }
 
 	/* Input Trajectory Heights */
+	for (int i = 0; i < Trajectory::LENGTH; i += 10) {
+    int o = (((Trajectory::LENGTH)/10)*10)+Character::JOINT_NUM*3*2;
+    int w = (Trajectory::LENGTH)/10;
+    pfnn->Xp(o+(w*0)+(i/10)) = trajectory->heights[i][0] - root_position.y;
+    pfnn->Xp(o+(w*1)+(i/10)) = trajectory->heights[i][1] - root_position.y;
+    pfnn->Xp(o+(w*2)+(i/10)) = trajectory->heights[i][2] - root_position.y;
+  }
 }
+
+/* Update the character and trajectory from the output from PFNN */
 
 void updateCharacter() {
 	std::cout << "in update character\n";
@@ -683,21 +678,13 @@ void processAnim(int sock) {
 	json json_msg = json::parse(string_msg);
 
 	/* Initialise character and trajectory based on input */
-	// initialiseState(json_msg);
 	initialiseCharacter(json_msg);
 	initialiseTrajectory(json_msg);
 
-	/* Update Xp based on input */
-	// std::array<float, PFNN::XDIM> x_in = json_msg["X"];
-	// for (int i = 0; i < PFNN::XDIM; i++){
-	// 	pfnn->Xp(i) = x_in[i];
-	// }
-
 	// for(int f = 0; f < json_msg["AnimFrames"]; f++){
 	for(int f = 0; f < 3; f++){
-
 		/* Update Xp based on character and trajectory */
-		updateXp();
+		inputXp();
 
 		/* Predict next frame */
 		pfnn->predict(character->phase);
