@@ -19,7 +19,7 @@ class Character():
 
 # May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
 if server_on:
-    cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=True)
+    cmds.commandPort(name=":12345", pre="myServer", sourceType="mel", eo=False)
 
 # commandPort can only accept a MEL procedure as a prefix, so this acts as a wrapper for the python function myServer below.
 melproc = """
@@ -154,7 +154,7 @@ def doBuff(request):
     updateFrame()
 
     joint_pos, root_xform_x_vel, root_xform_z_vel = parseBuff(request)
-    moveRootXform(root_xform_x_vel, root_xform_z_vel)
+    # moveRootXform(root_xform_x_vel, root_xform_z_vel)
     moveJoints(joint_pos)
     # setJointKeyframes()
     # updateFrame()

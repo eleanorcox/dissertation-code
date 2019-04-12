@@ -626,7 +626,7 @@ std::string testGetY(int frame) {
 	std::array<float, Character::JOINT_NUM*3> joint_pos;
 	for (int i = 0; i < Character::JOINT_NUM; i++) {
 		for( int j = 0; j < 3; j++){
-			joint_pos[i*3+j] = character->positions[i][j];
+			joint_pos[i*3+j] = character->joint_positions[i][j];
 		}
 	}
 
@@ -672,7 +672,6 @@ void updateCharacter() {
 	/* Update Phase */
 	float stand_amount = powf(1.0f - trajectory->gait_stand[Trajectory::LENGTH/2], 0.25f);
 	character->phase = fmod(character->phase + (stand_amount * 0.9f + 0.1f) * 2*M_PI * pfnn->Yp(3), 2*M_PI);
-	std::cout << "Phase = " << character->phase;
 }
 
 void updateTrajectory(json json_msg, int frame) {
@@ -703,8 +702,6 @@ void updateTrajectory(json json_msg, int frame) {
 	else {
 		last_index = frame + Trajectory::LENGTH/2 - 1;
 	}
-
-	std::cout << " Last Index: " << last_index << "\n";
 
 	/* Last Trajectory Position */
 	float posx = json_msg["PathPos"][last_index][0];
@@ -809,11 +806,7 @@ void processAnim(int sock) {
 	initialiseCharacter(json_msg);
 	initialiseTrajectory(json_msg);
 
-	// for(int f = 0; f < json_msg["AnimFrames"]; f++){
-	for(int f = 0; f < 3; f++){
-
-		std::cout << "Frame = " << f << " ";
-
+	for(int f = 0; f < json_msg["AnimFrames"]; f++){
 		/* Update Xp based on character and trajectory */
 		inputXp();
 
