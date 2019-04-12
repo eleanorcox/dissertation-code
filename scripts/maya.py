@@ -39,9 +39,6 @@ def myServer(str):
     if request["RequestType"] == "GET":
         response = doGet()
         return response
-    # elif request["RequestType"] == "PUT":
-    #     doPut(request)
-    #     return "PUT acknowledged"
     elif request["RequestType"] == "BUFF":
         doBuff(request)
         return "cheese, gromit!"
@@ -89,7 +86,7 @@ def getPathDir():
     return path_dir
 
 # TODO: implement properly later
-# Returns a list of [r, c, l] heights of the left, central and right sample points on the path, local to the root xform
+# Returns a list of WORLD SPACE [r, c, l] heights of the left, central and right sample points of the path
 def getPathHeight():
     # path = getPathName()
     # point_dist = 1.0/anim_frames
@@ -106,35 +103,23 @@ def getPathHeight():
         path_heights.append([0, 0, 0])
     return path_heights
 
-# # Returns a list of joint positions local to root xform
-# def getJointPos():
-#     root_xform_pos = getRootXformPos()
-#     joints_pos = []
-#
-#     # Maybe need to add in root rotation (i.e. r_rot * (r_xform_pos - j_pos))
-#     for joint in character.joints:
-#         joint_pos = cmds.xform(joint, worldSpace=True, query=True, translation=True)
-#         for i in range(len(joint_pos)):
-#             joints_pos.append(joint_pos[i] - root_xform_pos[i])
-#
-#     return joints_pos
-
-# Returns a list of world space joint positions
+# Returns a list of WORLD SPACE joint positions
 def getJointPos():
     root_xform_pos = getRootXformPos()
     joints_pos = []
 
     for joint in character.joints:
-        joint_pos = cmds.xform(joint, worldSpace=True, query=True, translation=True)
-        for i in range(len(joint_pos)):
-            joints_pos.append(joint_pos[i])
+        pos = cmds.xform(joint, worldSpace=True, query=True, translation=True)
+        for i in range(len(pos)):
+            joints_pos.append(pos[i])
 
     return joints_pos
 
-# Returns a list of joint velocities local to root xform
+# TODO: full implementation
+# Returns a list of WORLD SPACE joint velocities
 def getJointVel():
     velocities = []
-    for i in range(93):
+    for i in range(len(character.joints)*3):
         velocities.append(0)
     return velocities
 
@@ -145,7 +130,7 @@ def getGait():
     # For now just set these to one of the values for testing, at a later date change this to get input from user
     gait = []
     for i in range(anim_frames):
-        gait.append(0)
+        gait.append(1)
     return gait
 
 def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits):
@@ -162,23 +147,6 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
                            "RootDir": root_xform_dir})
     return response
 
-########## PUT requests ##########
-
-# def doPut(request):
-#     joint_pos, root_xform_x_vel, root_xform_z_vel = parsePut(request)
-#     moveRootXform(root_xform_x_vel, root_xform_z_vel)
-#     moveJoints(joint_pos)
-#     setJointKeyframes()
-#     updateFrame()
-
-# def parsePut(request):
-#     joint_pos = request["JointPos"]
-#     vel = request["RootXformVels"]
-#     root_xform_x_vel = float(vel[0])
-#     root_xform_z_vel = float(vel[1])
-#
-#     return joint_pos, root_xform_x_vel, root_xform_z_vel
-
 ########## BUFF requests ##########
 
 def doBuff(request):
@@ -188,8 +156,8 @@ def doBuff(request):
     joint_pos, root_xform_x_vel, root_xform_z_vel = parseBuff(request)
     moveRootXform(root_xform_x_vel, root_xform_z_vel)
     moveJoints(joint_pos)
-    setJointKeyframes()
-    updateFrame()
+    # setJointKeyframes()
+    # updateFrame()
 
 def parseBuff(request):
     joint_pos = request["JointPos"]
@@ -205,7 +173,6 @@ def moveRootXform(root_xform_x_vel, root_xform_z_vel):
     cmds.move(new_x, new_y, new_z, character.root, worldSpace=True)
 
 def moveJoints(joint_pos):
-    global character
     root_xform_pos = getRootXformPos()
 
     for i in range(len(character.joints)):
@@ -231,13 +198,12 @@ def updateFrame():
 
 def getRootName():
     joints = cmds.ls(type='joint')
-    x = joints[0]
+    root = joints[0]
     found = False
 
     while not found:
-        parent = cmds.listRelatives(x, parent=True)
+        parent = cmds.listRelatives(root, parent=True)
         if parent is not None:
-            x = parent[0]
             root = parent[0]
         elif parent is None:
             found = True
