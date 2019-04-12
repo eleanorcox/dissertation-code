@@ -134,17 +134,13 @@ def getGait():
     return gait
 
 def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits):
-    root_xform_pos = getRootXformPos()
-    root_xform_dir = getRootXformDir()
     response = json.dumps({"AnimFrames": anim_frames,
                            "PathPos": path_pos,
                            "PathDir": path_dir,
                            "PathHeight": path_heights,
                            "JointPos": joint_pos,
                            "JointVel": joint_vel,
-                           "Gait": path_gaits,
-                           "RootPos": root_xform_pos,
-                           "RootDir": root_xform_dir})
+                           "Gait": path_gaits})
     return response
 
 ########## BUFF requests ##########
@@ -152,37 +148,19 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
 def doBuff(request):
     setJointKeyframes()
     updateFrame()
-
-    joint_pos, root_xform_x_vel, root_xform_z_vel = parseBuff(request)
-    # moveRootXform(root_xform_x_vel, root_xform_z_vel)
+    joint_pos = parseBuff(request)
     moveJoints(joint_pos)
-    # setJointKeyframes()
-    # updateFrame()
 
 def parseBuff(request):
     joint_pos = request["JointPos"]
-    root_xform_x_vel = request["RootX"]
-    root_xform_z_vel = request["RootZ"]
-    return joint_pos, root_xform_x_vel, root_xform_z_vel
-
-def moveRootXform(root_xform_x_vel, root_xform_z_vel):
-    root_xform_pos = getRootXformPos()
-    new_x = positionFromVelocity(root_xform_pos[0], root_xform_x_vel)
-    new_y = 0       # TODO: Hardcoded
-    new_z = positionFromVelocity(root_xform_pos[2], root_xform_z_vel)
-    cmds.move(new_x, new_y, new_z, character.root, worldSpace=True)
+    return joint_pos
 
 def moveJoints(joint_pos):
-    root_xform_pos = getRootXformPos()
-
     for i in range(len(character.joints)):
-        x_offset = joint_pos[i*3+0]
-        y_offset = joint_pos[i*3+1]
-        z_offset = joint_pos[i*3+2]
-        x_pos = root_xform_pos[0] + x_offset
-        y_pos = root_xform_pos[1] + y_offset
-        z_pos = root_xform_pos[2] + z_offset
-        cmds.move(x_pos, y_pos, z_pos, character.joints[i], worldSpace=True)
+        x_pos = joint_pos[i*3+0]
+        y_pos = joint_pos[i*3+1]
+        z_pos = joint_pos[i*3+2]
+        cmds.move(x_pos, y_pos, z_pos, character.joints[i], worldSpace=True, preserveChildPosition=True)
 
 def setJointKeyframes():
     for joint in character.joints:

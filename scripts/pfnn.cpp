@@ -371,14 +371,6 @@ void initialiseTrajectory(json json_msg) {
 
 	// TODO: assumes character starts exactly on trajectory. what if this is not the case?
 	// Trajectory has to originate from character root position. edit in Maya to force this to be the case.
-	// Following block of code is for using the root position, direction and rotation directly from the character.
-	/*
-	glm::vec3 root_position = glm::vec3(json_msg["RootPos"][0], json_msg["RootPos"][1], json_msg["RootPos"][2]);
-	glm::vec3 root_xform_dir = glm::vec3(json_msg["RootDir"][0], json_msg["RootDir"][1], json_msg["RootDir"][2]);
-
-	float theta = atan2f(root_xform_dir.x, root_xform_dir.z);
-	glm::mat3 rotation_matrix = glm::mat3(glm::rotate(theta, glm::vec3(0,1,0)));
-	*/
 
 	/* Initialise Trajectory Positions */
 	for(int i = 0; i < Trajectory::LENGTH/2; i++){
@@ -596,32 +588,9 @@ void inputXp() {
 	}
 }
 
-/* Get Relevant Info from Yp to send to Maya */
+/* Get Relevant Info from Yp to send to Maya and JSONify */
 
-std::string getRelevantYJson(int frame) {
-	float root_xform_x_vel	 = pfnn->Yp(0);
-	float root_xform_z_vel 	 = pfnn->Yp(1);
-	float root_xform_ang_vel = pfnn->Yp(2);
-
-	std::array<float, Character::JOINT_NUM*3> joint_pos;
-	for (int i = 0; i < Character::JOINT_NUM*3; i++) {
-		joint_pos[i] = pfnn->Yp(32+i);
-	}
-
-	json y_json;
-	y_json["RootX"] = root_xform_x_vel;
-	y_json["RootZ"] = root_xform_z_vel;
-	y_json["RootAng"] = root_xform_ang_vel;
-	y_json["JointPos"] = joint_pos;
-	y_json["Frame"] = frame;
-
-	std::string y_json_str;
-	y_json_str = y_json.dump();
-
-	return y_json_str;
-}
-
-std::string testGetY(int frame) {
+std::string getRelevantY(int frame) {
 
 	std::array<float, Character::JOINT_NUM*3> joint_pos;
 	for (int i = 0; i < Character::JOINT_NUM; i++) {
@@ -633,7 +602,6 @@ std::string testGetY(int frame) {
 	json y_json;
 	y_json["JointPos"] = joint_pos;
 	y_json["Frame"] = frame;
-
 	std::string y_json_str = y_json.dump();
 
 	return y_json_str;
@@ -813,16 +781,16 @@ void processAnim(int sock) {
 		/* Predict next frame */
 		pfnn->predict(character->phase);
 
-		/* Extract relevant Y info, JSONify */
-		std::string y_out = getRelevantYJson(f);
-
-		/* Send y info */
-		n = send(sock, y_out.c_str(), y_out.length(),0);
-		if (n < 0) error("ERROR writing to socket");
-
 		/* Update character and trajectory */
 		updateCharacter();
 		updateTrajectory(json_msg, f);
+
+		/* Extract relevant Y info, JSONify */
+		std::string y_out = getRelevantY(f);
+
+		/* Send Y info */
+		n = send(sock, y_out.c_str(), y_out.length(),0);
+		if (n < 0) error("ERROR writing to socket");
 	}
 
 	n = send(sock,"#",1,0);
