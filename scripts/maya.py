@@ -1,7 +1,7 @@
 #################################################################
 # Runs from inside Maya.
 #################################################################
-
+import maya.OpenMaya as OpenMaya
 import maya.cmds as cmds
 import maya.mel as mel
 import json
@@ -106,19 +106,40 @@ def getPathDir():
 
     return path_dir
 
-# TODO: implement properly later
 # Returns a list of WORLD SPACE [r, c, l] heights of the left, central and right sample points of the path
 def getPathHeights(left_pos, path_pos, right_pos):
-    ground_vtxs = getGroundVertices()
-    path_heights = []
+    ground = getGroundName()
 
-    for i in range(anim_frames):
-        vtx_r = getClosestVertex(right_pos[i], ground_vtxs)
-        vtx_c = getClosestVertex(path_pos[i], ground_vtxs)
-        vtx_l = getClosestVertex(left_pos[i], ground_vtxs)
-        path_heights.append([vtx_r[1], vtx_c[1], vtx_l[1]])
+    nodeDagPath = OpenMaya.MObject()
+    selectionList = OpenMaya.MSelectionList()
+    selectionList.add(ground)
+    nodeDagPath = OpenMaya.MDagPath()
+    selectionList.getDagPath(0, nodeDagPath)
+    mFnMesh = OpenMaya.MFnMesh(nodeDagPath)
 
-    return path_heights
+    vtx_pos = getGroundVertexPositions(mFnMesh)
+    tri_vtx_indx = getGroundTriangleIndices(mFnMesh)
+
+    lpr_pos = [[left_pos[i], path_pos[i], right_pos[i]] for i in range(len(path_pos))]
+    lpr_heights = []
+
+    for i in range(len(lpr_pos)):
+        point_heights = []
+        for point in lpr_pos[i]:
+            closest_vtx_index = getClosestVertexIndex(point, vtx_pos)
+            closest_vtx_pos = vtx_pos[closest_vtx_index]
+            on_vertex = point[0] == closest_vtx_pos[0] and point[1] == closest_vtx_pos[2]
+
+            if not on_vertex:
+                poss_tri = getPossibleTriangles(closest_vtx_index, tri_vtx_indx)
+                height = interpolateHeight(point, poss_tri, vtx_pos)
+            else:
+                height = closest_vtx_pos[1]
+
+            point_heights.append(height)
+        lpr_heights.append(point_heights)
+
+    return lpr_heights
 
 # Returns a list of WORLD SPACE joint positions
 def getJointPos():
@@ -211,37 +232,99 @@ def getJointNames(joints, joint):
             joints = getJointNames(joints, child)
     return joints
 
-### Path / Ground ###
+### Path ###
 
 # TODO: get from user input
 def getPathName():
     path = "curve1"     # Hardcoded
     return path
 
+### Heights ###
+
 # TODO: get from user input
 def getGroundName():
     ground = "pPlane1"  # Hardcoded
     return ground
 
-def getGroundVertices():
-    ground = getGroundName()
-    vtx = cmds.xform(ground + '.vtx[*]', query=True, worldSpace=True, translation=True)
-    vertices = []
-    for i in range(len(vtx) / 3):
-        vertices.append([vtx[3*i + 0], vtx[3*i + 1], vtx[3*i + 2]])
-    return vertices
+def getGroundVertexPositions(mFnMesh):
+    vtx = OpenMaya.MPointArray()
+    space = OpenMaya.MSpace.kWorld
+    mFnMesh.getPoints(vtx, space)
 
-def getClosestVertex(point, vertices):
-    closest = []
+    vtx_pos = []
+    for x in range(vtx.length()):
+        vtx_pos.append([vtx[x].x, vtx[x].y, vtx[x].z])
+    return vtx_pos
+
+def getGroundTriangleIndices(mFnMesh):
+    triangle_count = OpenMaya.MIntArray()
+    triangle_indices = OpenMaya.MIntArray()
+    mFnMesh.getTriangles(triangle_count, triangle_indices)
+
+    tri_vtx_indx = [triangle_indices[i:i + 3] for i in xrange(0, len(triangle_indices), 3)]
+    return tri_vtx_indx
+
+def getClosestVertexIndex(point, vertices):
+    closest = -1
     shortest_dist = float('inf')
-    for v in vertices:
-        xdist = (point[0] - v[0]) ** 2
-        zdist = (point[1] - v[2]) ** 2
+    for i in range(len(vertices)):
+        xdist = (point[0] - vertices[i][0]) ** 2
+        zdist = (point[1] - vertices[i][2]) ** 2
         euc_dist = math.sqrt(xdist + zdist)
-        if euc_dist < shortest_dist:
-            closest = v
+        if euc_dist <= shortest_dist:
+            closest = i
             shortest_dist = euc_dist
     return closest
+
+def getPossibleTriangles(closest_vtx_index, tri_vtx_indx):
+    possTriangles = []
+    for i in range(len(tri_vtx_indx)):
+        if closest_vtx_index in tri_vtx_indx[i]:
+            possTriangles.append(tri_vtx_indx[i])
+    return possTriangles
+
+def interpolateHeight(point, poss_tri, vtx_pos):
+    # Takes list of possible triangles point lies within and creates list of the world space coordinates of the vertices defining the triangles
+    possible_triangles = []
+    for tri in poss_tri:
+        a_index = tri[0]
+        b_index = tri[1]
+        c_index = tri[2]
+        possible_triangles.append([vtx_pos[a_index], vtx_pos[b_index], vtx_pos[c_index]])
+
+    # Using barycetric coordinates, find which triangle the point lies in and interpolate to find the height of the point
+    in_triangle = False
+    for triangle in possible_triangles:
+        A = triangle[0]
+        B = triangle[1]
+        C = triangle[2]
+        P = point
+
+        # TODO: make vectorsub function
+        v0 = [C[0] - A[0], C[2] - A[2]]    # v0 = C-A
+        v1 = [B[0] - A[0], B[2] - A[2]]    # v1 = B-A
+        v2 = [P[0] - A[0], P[1] - A[2]]    # v2 = P-A
+
+        # Dot product is commutative (for real numbers)
+        dot00 = dotProduct2D(v0, v0)
+        dot01 = dotProduct2D(v0, v1)
+        dot02 = dotProduct2D(v0, v2)
+        dot11 = dotProduct2D(v1, v1)
+        dot12 = dotProduct2D(v1, v2)
+
+        # Compute barycentric coordinates
+        inv_denominator = 1 / float(dot00 * dot11 - dot01 * dot01)
+        u = (dot11 * dot02 - dot01 * dot12) * inv_denominator
+        v = (dot00 * dot12 - dot01 * dot02) * inv_denominator
+
+        # Check if point is in triangle
+        in_triangle = (u >= 0) and (v >= 0) and (u + v <= 1)
+        if in_triangle:
+            # Interpolate to find height
+            height = A[1] + u*(C[1] - A[1]) + v*(B[1] - A[1])
+            break
+
+    return height
 
 ### Root Xform ###
 
@@ -284,17 +367,21 @@ def getRootXformDir():
         v3.append((v1[i] + v2[i])/2)
 
     # Facing direction: cross product between v3 and upward direction (0,1,0)
-    root_xform_dir = crossProduct(v3, [0, 1, 0])
+    root_xform_dir = crossProduct3D(v3, [0, 1, 0])
 
     return root_xform_dir
 
 ### Other ###
 
-def crossProduct(a, b):
+def crossProduct3D(a, b):
     c = [a[1]*b[2] - a[2]*b[1],
          a[2]*b[0] - a[0]*b[2],
          a[0]*b[1] - a[1]*b[0]]
     return c
+
+def dotProduct2D(a, b):
+    dot = a[0]*b[0] + a[1]*b[1]
+    return dot
 
 character = Character()
 
