@@ -749,7 +749,6 @@ void updateTrajectory(json json_msg, int frame) {
 
 /* A separate instance of this function is called for each connection */
 void processAnim(int sock) {
-	std::cout << "Processing request...";
 	int n;
 	char buffer[4096];
 	std::string string_msg = "";
@@ -794,10 +793,10 @@ void processAnim(int sock) {
 		if (n < 0) error("ERROR writing to socket");
 	}
 
-	std::cout << " Request processed.\nSending response...";
+	std::cout << "Request processed.\nSending response... ";
 	n = send(sock,"#",1,0);
 	if (n < 0) error("ERROR writing to socket");
-	std::cout < " Response sent.\n";
+	std::cout << "Response sent.\n";
 }
 
 int main(int argc, char **argv) {
@@ -851,7 +850,7 @@ int main(int argc, char **argv) {
 			error("ERROR on fork");
 
 		if (pid == 0){
-			std::cout << "Request received.\n";
+			std::cout << "Request received.\nProcessing request... ";
 			close(sockfd);
 			processAnim(newsockfd);
 			reset();

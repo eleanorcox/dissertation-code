@@ -36,7 +36,7 @@ if test_maya_get:
     # Maya appends "\n\x00" to the end of anything it sends back, the following removes this
     response = response.replace("\n", '')
     response = response.replace("\x00", '')
-    print("Response received.")
+    print("Response received.\n")
 
     # Checking we've received a JSON object
     json_response = json.loads(response)
@@ -58,7 +58,7 @@ if test_pfnn_send:
         responses = responses + resp
         if '#' in resp:
             all_responses = True
-    print("Response received. Closing socket to PFNN.")
+    print("Response received. Closing socket to PFNN.\n")
     pfnn_sock.close()
 
     # Separates out and correctly formats the responses
