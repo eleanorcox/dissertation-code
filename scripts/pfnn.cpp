@@ -749,6 +749,7 @@ void updateTrajectory(json json_msg, int frame) {
 
 /* A separate instance of this function is called for each connection */
 void processAnim(int sock) {
+	std::cout << "Processing request...\n";
 	int n;
 	char buffer[4096];
 	std::string string_msg = "";
@@ -793,6 +794,7 @@ void processAnim(int sock) {
 		if (n < 0) error("ERROR writing to socket");
 	}
 
+	std::cout << "Request processed. Sending response...\n";
 	n = send(sock,"#",1,0);
 	if (n < 0) error("ERROR writing to socket");
 
@@ -801,6 +803,7 @@ void processAnim(int sock) {
 int main(int argc, char **argv) {
 
 	/* Resources */
+	std::cout << "Setting up resources...\n";
 
 	character = new Character();
 	trajectory = new Trajectory();
@@ -829,12 +832,12 @@ int main(int argc, char **argv) {
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	if (bind(sockfd, (struct sockaddr *) &serv_addr,
 		sizeof(serv_addr)) < 0)
-    error("ERROR on binding");
+    error("ERROR binding socket");
 
 	listen(sockfd,5);
 	clilen = sizeof(cli_addr);
 
-	std::cout << "Listening...\n";
+	std::cout << "Listening on port " << portno << "...\n";
 
 	while(true){
 		newsockfd = accept(sockfd,
@@ -848,9 +851,11 @@ int main(int argc, char **argv) {
 			error("ERROR on fork");
 
 		if (pid == 0){
+			std::cout << "Request received...\n";
 			close(sockfd);
 			processAnim(newsockfd);
 			reset();
+			std::cout << "\nListening on port " << portno << "...\n";
 			exit(0);
 		}
 		else

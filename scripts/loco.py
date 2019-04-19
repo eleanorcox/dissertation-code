@@ -55,7 +55,7 @@ if test_pfnn_send:
         responses = responses + resp
         if '#' in resp:
             all_responses = True
-    print("Response recieved\nClosing socket to PFNN")
+    print("Response received\nClosing socket to PFNN")
     pfnn_sock.close()
 
     # Separates out and correctly formats the responses
@@ -69,14 +69,13 @@ if test_maya_put:
     print("Sending data to Maya\n")
 
     for response in responses:
-        # print(repr(response))
         json_response = json.loads(response)
         json_response["RequestType"] = "BUFF"
         json_request = json.dumps(json_response)
 
         maya_sock.sendall(json_request)
-        data = maya_sock.recv(4096)
-        print("Received: %s" % data)
+        # data = maya_sock.recv(4096)
+        # print("Received: %s" % data)
         time.sleep(0.1)
 
     maya_sock.close()

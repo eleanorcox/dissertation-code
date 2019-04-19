@@ -42,7 +42,7 @@ def myServer(str):
         return response
     elif request["RequestType"] == "BUFF":
         doBuff(request)
-        return "cheese, gromit!"
+        # return "cheese, gromit!"
 
 ########## GET requests ##########
 
