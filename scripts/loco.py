@@ -21,6 +21,7 @@ if test_maya_get:
     print("Connecting to Maya: %s port %s" % maya_address)
     maya_sock.connect(maya_address)
 
+    print("Sending request to Maya...")
     json_request = json.dumps({"RequestType": "GET"})
     maya_sock.sendall(json_request)
 
@@ -35,7 +36,7 @@ if test_maya_get:
     # Maya appends "\n\x00" to the end of anything it sends back, the following removes this
     response = response.replace("\n", '')
     response = response.replace("\x00", '')
-    print("Received: %s" % response)
+    print("Response received.")
 
     # Checking we've received a JSON object
     json_response = json.loads(response)
@@ -45,6 +46,8 @@ if test_pfnn_send:
     pfnn_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print("Connecting to PFNN: %s port %s" % pfnn_address)
     pfnn_sock.connect(pfnn_address)
+
+    print("Sending request to PFNN...")
     pfnn_sock.sendall(json_pfnn)
     print("Awaiting response...")
 
@@ -55,7 +58,7 @@ if test_pfnn_send:
         responses = responses + resp
         if '#' in resp:
             all_responses = True
-    print("Response received\nClosing socket to PFNN")
+    print("Response received. Closing socket to PFNN.")
     pfnn_sock.close()
 
     # Separates out and correctly formats the responses
@@ -66,7 +69,7 @@ if test_pfnn_send:
     responses = responses[:-1]
 
 if test_maya_put:
-    print("Sending data to Maya\n")
+    print("Sending response to Maya...")
 
     for response in responses:
         json_response = json.loads(response)
@@ -78,4 +81,5 @@ if test_maya_put:
         # print("Received: %s" % data)
         time.sleep(0.1)
 
+    print("Response sent. Closing socket to Maya.")
     maya_sock.close()
