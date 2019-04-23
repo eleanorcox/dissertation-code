@@ -16,6 +16,13 @@ class Character():
         self.root = getRootName()
         self.joints = getJointNames([self.root], self.root)
 
+class Buffer():
+    def __init__(self):
+        self.commands = []
+
+    def clear(self):
+        self.commands = []
+
 ########## Server functions ##########
 
 # May want to add bufferSize flag, size of buffer for commands and results. Default 4096.
@@ -41,7 +48,11 @@ def myServer(str):
         response = doGet()
         return response
     elif request["RequestType"] == "BUFF":
-        doBuff(request)
+        final_buff = doBuff(request)
+        if final_buff:
+            return "FIN"
+        else:
+            return "CONT."
 
 ########## GET requests ##########
 
@@ -182,21 +193,25 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
 ########## BUFF requests ##########
 
 def doBuff(request):
-    setJointKeyframes()
-    updateFrame()
-    joint_pos = parseBuff(request)
-    moveJoints(joint_pos)
+    final_buff = False
+    buffer.commands.append(request["JointPos"])
 
-def parseBuff(request):
-    joint_pos = request["JointPos"]
-    return joint_pos
+    # If last frame, execute buffer
+    frame = request["Frame"]
+    if frame == anim_frames - 1:
+        executeBuffer()
+        final_buff = True
 
-def moveJoints(joint_pos):
-    for i in range(len(character.joints)):
-        x_pos = joint_pos[i*3+0]
-        y_pos = joint_pos[i*3+1]
-        z_pos = joint_pos[i*3+2]
-        cmds.move(x_pos, y_pos, z_pos, character.joints[i], worldSpace=True, preserveChildPosition=True)
+    return final_buff
+
+def executeBuffer():
+    for i in range(len(buffer.commands)):
+        setJointKeyframes()
+        updateFrame()
+        joint_pos = buffer.commands[i]
+        moveJoints(joint_pos)
+
+    buffer.clear()
 
 def setJointKeyframes():
     for joint in character.joints:
@@ -205,6 +220,13 @@ def setJointKeyframes():
 def updateFrame():
     now = cmds.currentTime(query=True)
     cmds.currentTime(now + 1)
+
+def moveJoints(joint_pos):
+    for i in range(len(character.joints)):
+        x_pos = joint_pos[i*3+0]
+        y_pos = joint_pos[i*3+1]
+        z_pos = joint_pos[i*3+2]
+        cmds.move(x_pos, y_pos, z_pos, character.joints[i], worldSpace=True, preserveChildPosition=True)
 
 ########## Helper functions ##########
 
@@ -383,5 +405,6 @@ def dotProduct2D(a, b):
     return dot
 
 character = Character()
+buffer = Buffer()
 
 #pm.general.commandPort(name=":12345", cl=True)

@@ -25,6 +25,7 @@ if test_maya_get:
     json_request = json.dumps({"RequestType": "GET"})
     maya_sock.sendall(json_request)
 
+    print("Awaiting response...")
     full_response = False
     response = ""
     while not full_response:
@@ -77,9 +78,9 @@ if test_maya_put:
         json_request = json.dumps(json_response)
 
         maya_sock.sendall(json_request)
-        # data = maya_sock.recv(4096)
-        # print("Received: %s" % data)
-        time.sleep(0.1)
+        data = maya_sock.recv(4096)
+        # time.sleep(0.1)
 
-    print("Response sent. Closing socket to Maya.")
-    maya_sock.close()
+    if "FIN" in data:
+        print("Response sent. Closing socket to Maya.")
+        maya_sock.close()
