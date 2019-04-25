@@ -7,7 +7,6 @@ import maya.mel as mel
 import json
 import math
 
-anim_frames = 800
 server_on = False
 
 # Names of joints stored here
@@ -15,6 +14,13 @@ class Character():
     def __init__(self):
         self.root = getRootName()
         self.joints = getJointNames([self.root], self.root)
+
+class AnimInfo():
+    def __init__(self):
+        self.anim_frames = 0
+        self.delta_stand = 0.0          # Units, from experimentation
+        self.delta_walk  = 800.0/780.0  # Units, from experimentation
+        self.delta_jog   = 800.0/250.0  # Units, from experimentation
 
 class Buffer():
     def __init__(self):
@@ -57,33 +63,74 @@ def myServer(str):
 ########## GET requests ##########
 
 def doGet():
+    # Get gait info
+    path_gaits = getGait()
     # Get path info
-    left_pos, path_pos, right_pos = getPathPos()
-    path_dir = getPathDir()
+    left_pos, path_pos, right_pos = getPathPos(path_gaits)
+    path_dir = getPathDir(path_gaits)
     path_heights = getPathHeights(left_pos, path_pos, right_pos)
     # Get character info
     joint_pos = getJointPos()
     joint_vel = getJointVel()
-    # Get gait info
-    path_gaits = getGait()
     # Format as JSON
     response = formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits)
     return response
 
+# TODO: full implementation from user input
+def getGait():
+    # For gait, 0=stand, 1=walk, 2=jog, 4=crouch, 5=jump, 6=unused (in pfnn)
+    # Want gait at each point along path - i.e. at each frame
+
+    gait = []
+    path = getPathName()
+    path_length = cmds.arclen(path)
+
+    # TODO: HARDCODED for testing
+    frames_walk_halfway = (path_length/2.0) / anim_info.delta_walk
+    frames_jog_halfway  = (path_length/2.0) / anim_info.delta_jog
+
+    for i in range(int(frames_walk_halfway)):
+        gait.append(1)
+    for i in range(int(frames_jog_halfway)):
+        gait.append(2)
+
+    total_frames = frames_walk_halfway + frames_jog_halfway
+    anim_info.anim_frames = total_frames
+
+    return gait
+
 # Returns three lists of WORLD SPACE coordinates:
 # path_pos = [x, z] coordinates of points along the path
 # left_pos/right_pos = [x, z] coordinates of points 25cm to the left/right of the path, used later in getPathHeights
-def getPathPos():
+def getPathPos(path_gaits):
     path = getPathName()
-    point_dist = 1.0/anim_frames
-    unit = 25 # cm
+    unit = 25       # cm
     path_pos = []
     left_pos = []
     right_pos = []
 
-    for i in range(anim_frames):
-        param = i * point_dist
+    prev_param = 0
+    path_length = cmds.arclen(path)
+
+    for i in range(int(anim_info.anim_frames)):
+        if path_gaits[i] == 0:
+            point_dist = anim_info.delta_stand
+        if path_gaits[i] == 1:
+            f = path_length / anim_info.delta_walk
+            point_dist = 1.0 / f
+        if path_gaits[i] == 2:
+            f = path_length / anim_info.delta_jog
+            point_dist = 1.0 / f
+
+        if i == 0:
+            param = 0
+        else:
+            param = prev_param + point_dist
+
         pos = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, position=True)
+        path_pos.append([pos[0], pos[2]])
+        prev_param = param
+
         tangent = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedTangent=True)
         normal = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedNormal=True)
 
@@ -92,8 +139,6 @@ def getPathPos():
         t_pos = [pos[0] + unit*tangent[0], pos[1] + unit*tangent[1], pos[2] + unit*tangent[2]]
 
         d = (a_pos[0] - pos[0])*(t_pos[2] - pos[2]) - (a_pos[2] - pos[2])*(t_pos[0] - pos[0])
-
-        path_pos.append([pos[0], pos[2]])
         if d < 0:
             left_pos.append([b_pos[0], b_pos[2]])
             right_pos.append([a_pos[0], a_pos[2]])
@@ -104,13 +149,28 @@ def getPathPos():
     return left_pos, path_pos, right_pos
 
 # Returns a list of WORLD SPACE [dir x, dir z] pairs
-def getPathDir():
+def getPathDir(path_gaits):
     path = getPathName()
-    point_dist = 1.0/anim_frames
     path_dir = []
+    prev_param = 0
+    path_length = cmds.arclen(path)
 
-    for i in range(anim_frames):
-        param = i * point_dist
+    for i in range(int(anim_info.anim_frames)):
+        if path_gaits[i] == 0:
+            point_dist = anim_info.delta_stand
+        if path_gaits[i] == 1:
+            f = path_length / anim_info.delta_walk
+            point_dist = 1.0 / f
+        if path_gaits[i] == 2:
+            f = path_length / anim_info.delta_jog
+            point_dist = 1.0 / f
+
+        if i == 0:
+            param = 0
+        else:
+            param = prev_param + point_dist
+        prev_param = param
+
         tangent = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedTangent=True)
         path_dir.append([tangent[0], tangent[2]])
 
@@ -170,18 +230,8 @@ def getJointVel():
         velocities.append(0)
     return velocities
 
-# TODO: full implementation from user input
-def getGait():
-    # For gait, 0=stand, 1=walk, 2=jog, 4=crouch, 5=jump, 6=unused (in pfnn)
-    # Want gait at each point along path - i.e. at each frame
-    # For now just set these to one of the values for testing, at a later date change this to get input from user
-    gait = []
-    for i in range(anim_frames):
-        gait.append(1)
-    return gait
-
 def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_gaits):
-    response = json.dumps({"AnimFrames": anim_frames,
+    response = json.dumps({"AnimFrames": anim_info.anim_frames,
                            "PathPos": path_pos,
                            "PathDir": path_dir,
                            "PathHeight": path_heights,
@@ -198,7 +248,7 @@ def doBuff(request):
 
     # If last frame, execute buffer
     frame = request["Frame"]
-    if frame == anim_frames - 1:
+    if frame == anim_info.anim_frames - 1:
         executeBuffer()
         final_buff = True
 
@@ -273,8 +323,8 @@ def getGroundVertexPositions(mFnMesh):
     mFnMesh.getPoints(vtx, space)
 
     vtx_pos = []
-    for x in range(vtx.length()):
-        vtx_pos.append([vtx[x].x, vtx[x].y, vtx[x].z])
+    for i in range(vtx.length()):
+        vtx_pos.append([vtx[i].x, vtx[i].y, vtx[i].z])
     return vtx_pos
 
 def getGroundTriangleIndices(mFnMesh):
@@ -406,5 +456,6 @@ def dotProduct2D(a, b):
 
 character = Character()
 buffer = Buffer()
+anim_info = AnimInfo()
 
 #pm.general.commandPort(name=":12345", cl=True)
