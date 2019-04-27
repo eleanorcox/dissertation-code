@@ -17,10 +17,11 @@ class Character():
 
 class AnimInfo():
     def __init__(self):
-        self.anim_frames = 0
-        self.delta_stand = 0.0          # Units, from experimentation
-        self.delta_walk  = 800.0/780.0  # Units, from experimentation
-        self.delta_jog   = 800.0/250.0  # Units, from experimentation
+        self.anim_frames  = 0
+        self.delta_stand  = 0.0          # Units, from experimentation
+        self.delta_walk   = 800.0/500.0  # Units, from experimentation
+        self.delta_jog    = 800.0/250.0  # Units, from experimentation
+        self.delta_crouch = 800.0/602.0  # Units, from experimentation
 
 class Buffer():
     def __init__(self):
@@ -86,15 +87,21 @@ def getGait():
     path_length = cmds.arclen(path)
 
     # TODO: HARDCODED for testing
-    frames_walk_halfway = (path_length/2.0) / anim_info.delta_walk
-    frames_jog_halfway  = (path_length/2.0) / anim_info.delta_jog
-
-    for i in range(int(frames_walk_halfway)):
-        gait.append(1)
-    for i in range(int(frames_jog_halfway)):
+    # frames_walking = (path_length/2.0) / anim_info.delta_walk
+    # frames_standing = 300
+    # frames_jogging  = (path_length/2.0) / anim_info.delta_jog
+    frames_jogging  = path_length / anim_info.delta_jog
+    
+    for i in range(int(frames_jogging)):
         gait.append(2)
+    # for i in range(frames_standing):
+    #     gait.append(0)
+    # for i in range(int(frames_walking)):
+    #     gait.append(1)
 
-    total_frames = frames_walk_halfway + frames_jog_halfway
+
+
+    total_frames = frames_walking + frames_standing + frames_jogging
     anim_info.anim_frames = total_frames
 
     return gait
@@ -116,11 +123,11 @@ def getPathPos(path_gaits):
         if path_gaits[i] == 0:
             point_dist = anim_info.delta_stand
         if path_gaits[i] == 1:
-            f = path_length / anim_info.delta_walk
-            point_dist = 1.0 / f
+            point_dist = anim_info.delta_walk / path_length
         if path_gaits[i] == 2:
-            f = path_length / anim_info.delta_jog
-            point_dist = 1.0 / f
+            point_dist = anim_info.delta_jog / path_length
+        if path_gaits[i] == 3:
+            point_dist = anim_info.delta_crouch / path_length
 
         if i == 0:
             param = 0
@@ -159,11 +166,11 @@ def getPathDir(path_gaits):
         if path_gaits[i] == 0:
             point_dist = anim_info.delta_stand
         if path_gaits[i] == 1:
-            f = path_length / anim_info.delta_walk
-            point_dist = 1.0 / f
+            point_dist = anim_info.delta_walk / path_length
         if path_gaits[i] == 2:
-            f = path_length / anim_info.delta_jog
-            point_dist = 1.0 / f
+            point_dist = anim_info.delta_jog / path_length
+        if path_gaits[i] == 3:
+            point_dist = anim_info.delta_crouch / path_length
 
         if i == 0:
             param = 0
