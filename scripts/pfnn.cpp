@@ -272,6 +272,7 @@ struct Character {
 	glm::vec3 joint_positions[JOINT_NUM];	// World space
 	glm::vec3 joint_velocities[JOINT_NUM];	// World space
 	glm::mat3 joint_rotations[JOINT_NUM];
+	glm::mat4 joint_global_anim_xform[JOINT_NUM];
 
 	Character()
 	: phase(0) {}
@@ -603,11 +604,11 @@ void updateCharacter() {
 	for (int i = 0; i < Character::JOINT_NUM; i++) {
 	    int opos = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*0);
 	    int ovel = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*1);
-			int orot = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*2);
+		int orot = 8+(((Trajectory::LENGTH/2)/10)*4)+(Character::JOINT_NUM*3*2);
 
 	    glm::vec3 pos = (root_rotation * glm::vec3(pfnn->Yp(opos+i*3+0), pfnn->Yp(opos+i*3+1), pfnn->Yp(opos+i*3+2))) + root_position;
 	    glm::vec3 vel = (root_rotation * glm::vec3(pfnn->Yp(ovel+i*3+0), pfnn->Yp(ovel+i*3+1), pfnn->Yp(ovel+i*3+2)));
-			glm::mat3 rot = (root_rotation * glm::toMat3(quat_exp(glm::vec3(pfnn->Yp(orot+i*3+0), pfnn->Yp(orot+i*3+1), pfnn->Yp(orot+i*3+2)))));
+		glm::mat3 rot = (root_rotation * glm::toMat3(quat_exp(glm::vec3(pfnn->Yp(orot+i*3+0), pfnn->Yp(orot+i*3+1), pfnn->Yp(orot+i*3+2)))));
 
 		/*
 	    ** Blending Between the predicted positions and
@@ -616,9 +617,16 @@ void updateCharacter() {
 	    ** where the two disagree with each other.
 	    */
 
-			character->joint_positions[i]  = glm::mix(character->joint_positions[i] + vel, pos, 0.5);
+		character->joint_positions[i]  = glm::mix(character->joint_positions[i] + vel, pos, 0.5);
 	    character->joint_velocities[i] = vel;
-			character->joint_rotations[i]  = rot;
+		character->joint_rotations[i]  = rot;
+
+		// As in pfnn-master. Unsure whether this is an appropriate transformation matrix - see notes.
+		character->joint_global_anim_xform[i] = glm::transpose(glm::mat4(
+			rot[0][0], rot[1][0], rot[2][0], pos[0],
+			rot[0][1], rot[1][1], rot[2][1], pos[1],
+		 	rot[0][2], rot[1][2], rot[2][2], pos[2],
+					0,         0,         0,      1));
 	}
 
 	/* Update Phase */
@@ -742,19 +750,29 @@ std::string getRelevantY(int frame) {
 		}
 	}
 
-	std::array<float, Character::JOINT_NUM*9> joint_rot;
-	for (int i = 0; i < Character::JOINT_NUM; i++) {
-		for( int m = 0; m < 3; m++){
-			for(int n = 0; n < 3; n++){
-				joint_rot[i*9+3*m+n] = character->joint_rotations[i][m][n];
-			}
-		}
-	}
+	// std::array<float, Character::JOINT_NUM*9> joint_rot;
+	// for (int i = 0; i < Character::JOINT_NUM; i++) {
+	// 	for( int m = 0; m < 3; m++){
+	// 		for(int n = 0; n < 3; n++){
+	// 			joint_rot[i*9 + 3*m + n] = character->joint_rotations[i][m][n];
+	// 		}
+	// 	}
+	// }
+
+	// std::array<float, Character::JOINT_NUM*16> joint_xform;
+	// for (int i = 0; i < Character::JOINT_NUM; i++) {
+	// 	for( int m = 0; m < 4; m++){
+	// 		for(int n = 0; n < 4; n++){
+	// 			joint_xform[i*16 + 4*m + n] = character->joint_global_anim_xform[i][m][n];
+	// 		}
+	// 	}
+	// }
 
 	json y_json;
 	y_json["JointPos"] = joint_pos;
 	y_json["Frame"] = frame;
-	y_json["JointRot"] = joint_rot;
+	// y_json["JointRot"] = joint_rot;
+	// y_json["JointXform"] = joint_xform;
 	std::string y_json_str = y_json.dump();
 
 	return y_json_str;
