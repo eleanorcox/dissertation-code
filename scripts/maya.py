@@ -1,7 +1,7 @@
 #################################################################
 # Runs from inside Maya.
 #################################################################
-import maya.OpenMaya as OpenMaya
+import maya.api.OpenMaya as OpenMaya
 import maya.cmds as cmds
 import maya.mel as mel
 import json
@@ -91,7 +91,8 @@ def getGait():
     # frames_standing = 300
     # frames_jogging  = (path_length/2.0) / anim_info.delta_jog
     frames_jogging  = path_length / anim_info.delta_jog
-    
+    anim_info.anim_frames = frames_jogging
+
     for i in range(int(frames_jogging)):
         gait.append(2)
     # for i in range(frames_standing):
@@ -101,8 +102,8 @@ def getGait():
 
 
 
-    total_frames = frames_walking + frames_standing + frames_jogging
-    anim_info.anim_frames = total_frames
+    # total_frames = frames_walking + frames_standing + frames_jogging
+    # anim_info.anim_frames = total_frames
 
     return gait
 
@@ -187,11 +188,9 @@ def getPathDir(path_gaits):
 def getPathHeights(left_pos, path_pos, right_pos):
     ground = getGroundName()
 
-    nodeDagPath = OpenMaya.MObject()
     selectionList = OpenMaya.MSelectionList()
     selectionList.add(ground)
-    nodeDagPath = OpenMaya.MDagPath()
-    selectionList.getDagPath(0, nodeDagPath)
+    nodeDagPath = selectionList.getDagPath(0)
     mFnMesh = OpenMaya.MFnMesh(nodeDagPath)
 
     vtx_pos = getGroundVertexPositions(mFnMesh)
@@ -325,19 +324,16 @@ def getGroundName():
     return ground
 
 def getGroundVertexPositions(mFnMesh):
-    vtx = OpenMaya.MPointArray()
     space = OpenMaya.MSpace.kWorld
-    mFnMesh.getPoints(vtx, space)
+    vtx = mFnMesh.getPoints(space)
 
     vtx_pos = []
-    for i in range(vtx.length()):
+    for i in range(len(vtx)):
         vtx_pos.append([vtx[i].x, vtx[i].y, vtx[i].z])
     return vtx_pos
 
 def getGroundTriangleIndices(mFnMesh):
-    triangle_count = OpenMaya.MIntArray()
-    triangle_indices = OpenMaya.MIntArray()
-    mFnMesh.getTriangles(triangle_count, triangle_indices)
+    triangle_count, triangle_indices = mFnMesh.getTriangles()
 
     tri_vtx_indx = [triangle_indices[i:i + 3] for i in xrange(0, len(triangle_indices), 3)]
     return tri_vtx_indx

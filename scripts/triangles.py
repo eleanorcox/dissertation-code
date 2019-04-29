@@ -1,14 +1,12 @@
-import maya.OpenMaya as OpenMaya
+import maya.api.OpenMaya as OpenMaya
 import math
 
 def getHeights(l_pos, c_pos, r_pos):
     xz_point = [0.25, 0.2]       # Test point
 
-    nodeDagPath = OpenMaya.MObject()
     selectionList = OpenMaya.MSelectionList()
     selectionList.add('pPlane1')
-    nodeDagPath = OpenMaya.MDagPath()
-    selectionList.getDagPath(0, nodeDagPath)
+    nodeDagPath = selectionList.getDagPath(0)
     mFnMesh = OpenMaya.MFnMesh(nodeDagPath)
 
     vtx_pos = getGroundVertexPositions(mFnMesh)
@@ -27,20 +25,17 @@ def getHeights(l_pos, c_pos, r_pos):
     return height
 
 def getGroundVertexPositions(mFnMesh):
-    vtx = OpenMaya.MPointArray()
     space = OpenMaya.MSpace.kWorld
-    mFnMesh.getPoints(vtx, space)
+    vtx = mFnMesh.getPoints(space)
 
     vtx_pos = []
-    for x in range(vtx.length()):
+    for x in range(len(vtx)):
         vtx_pos.append([vtx[x].x, vtx[x].y, vtx[x].z])
     return vtx_pos
 
 def getGroundTriangleIndices(mFnMesh):
-    triangle_count = OpenMaya.MIntArray()
-    triangle_indices = OpenMaya.MIntArray()
-    mFnMesh.getTriangles(triangle_count, triangle_indices)
-
+    triangle_count, triangle_indices = mFnMesh.getTriangles()
+    
     tri_vtx_indx = [triangle_indices[i:i + 3] for i in xrange(0, len(triangle_indices), 3)]
     return tri_vtx_indx
 
