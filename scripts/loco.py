@@ -10,7 +10,6 @@ import sys
 test_maya_get = True
 test_pfnn_send = True
 test_maya_put = True
-XDIM = 342
 
 maya_address = ("localhost", 12345)
 pfnn_address = ("35.246.116.151", 54321) # google compute engine addr
@@ -79,7 +78,6 @@ if test_maya_put:
 
         maya_sock.sendall(json_request)
         data = maya_sock.recv(4096)
-        # time.sleep(0.1)
 
     if "FIN" in data:
         print("Response sent. Closing socket to Maya.")

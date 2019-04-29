@@ -251,11 +251,13 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
 def doBuff(request):
     final_buff = False
     buffer.commands.append(request["JointPos"])
+    # buffer.commands.append(request["JointXform"])
 
     # If last frame, execute buffer
     frame = request["Frame"]
     if frame == anim_info.anim_frames - 1:
         executeBuffer()
+        # executeXform()
         final_buff = True
 
     return final_buff
@@ -267,6 +269,20 @@ def executeBuffer():
         joint_pos = buffer.commands[i]
         moveJoints(joint_pos)
 
+    buffer.clear()
+
+def executeXform():
+    num_joints = len(character.joints)
+    for i in range(len(buffer.commands)):
+        setJointKeyframes()
+        updateFrame()
+
+        # Formats the xforms into 4x4 arrays so they can be fed into OpenMaya.MMatrix easier
+        xforms = buffer.commands[i]
+        xforms = [xforms[i:i+4] for i in xrange(0, num_joints*16, 4)]
+        xforms = [xforms[i:i+4] for i in xrange(0, num_joints*4, 4)]
+
+        transform_joints(xforms)
     buffer.clear()
 
 def setJointKeyframes():
@@ -283,6 +299,23 @@ def moveJoints(joint_pos):
         y_pos = joint_pos[i*3+1]
         z_pos = joint_pos[i*3+2]
         cmds.move(x_pos, y_pos, z_pos, character.joints[i], worldSpace=True, preserveChildPosition=True)
+
+def transform_joints(xforms):
+    for i in range(len(character.joints)):
+        # Choose joint
+        selectionList = OpenMaya.MSelectionList()
+        selectionList.add(character.joints[i])
+        nodeDagPath = selectionList.getDagPath(0)
+        mFnTransform = OpenMaya.MFnTransform(nodeDagPath)
+        xform_matrix = mFnTransform.transformation().asMatrix()
+
+        # New transformation matrix from pfnn
+        transformation = OpenMaya.MMatrix(xforms[i])
+
+        # Transform joint
+        new_mat = xform_matrix * transformation     # In maya matrices are post-multiplied
+        new_xform = OpenMaya.MTransformationMatrix(new_mat)
+        mFnTransform.setTransformation(new_xform)
 
 ########## Helper functions ##########
 
