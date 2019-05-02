@@ -268,7 +268,7 @@ def executeBuffer():
         updateFrame()
         joint_pos = buffer.commands[i]
         moveJoints(joint_pos)
-
+    setJointKeyframes()
     buffer.clear()
 
 def executeXform():

@@ -1,11 +1,11 @@
 #################################################################
 # Socket client to Maya. Runs in terminal.
 #################################################################
-import numpy as np
+# import numpy as np
 import socket
-import time
+# import time
 import json
-import sys
+# import sys
 
 test_maya_get = True
 test_pfnn_send = True
