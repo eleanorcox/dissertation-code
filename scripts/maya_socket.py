@@ -75,8 +75,7 @@ def doGet():
     # Get gait info
     path_gaits = getGait()
     # Get path info
-    left_pos, path_pos, right_pos = getPathPos(path_gaits)
-    path_dir = getPathDir(path_gaits)
+    left_pos, path_pos, right_pos, path_dir = getPathPosDir(path_gaits)
     path_heights = getPathHeights(left_pos, path_pos, right_pos)
     # Get character info
     joint_pos = getJointPos()
@@ -99,9 +98,9 @@ def getGait():
     # frames_standing = 300
     # frames_jogging  = (path_length/2.0) / anim_info.delta_jog
     frames_jogging  = path_length / anim_info.delta_jog
-    anim_info.anim_frames = frames_jogging
+    anim_info.anim_frames = math.floor(frames_jogging)
 
-    for i in range(int(frames_jogging)):
+    for i in range(int(anim_info.anim_frames)):
         gait.append(2)
     # for i in range(frames_standing):
     #     gait.append(0)
@@ -115,18 +114,25 @@ def getGait():
 
     return gait
 
-# Returns three lists of WORLD SPACE coordinates:
+# Returns four lists of WORLD SPACE coordinates:
 # path_pos = [x, z] coordinates of points along the path
 # left_pos/right_pos = [x, z] coordinates of points 25cm to the left/right of the path, used later in getPathHeights
-def getPathPos(path_gaits):
+# psth_dir = [dir x, dir z] pairs
+def getPathPosDir(path_gaits):
     path = getPathName()
     unit = 25       # cm
     path_pos = []
     left_pos = []
     right_pos = []
+    path_dir = []
+
+    selectionList = OpenMaya.MSelectionList()
+    selectionList.add(path)
+    nodeDagPath = selectionList.getDagPath(0)
+    path_curve = OpenMaya.MFnNurbsCurve(nodeDagPath)
 
     prev_param = 0
-    path_length = cmds.arclen(path)
+    path_length = path_curve.length()
 
     for i in range(int(anim_info.anim_frames)):
         if path_gaits[i] == 0:
@@ -142,13 +148,19 @@ def getPathPos(path_gaits):
             param = 0
         else:
             param = prev_param + point_dist
+            if param > 1:
+                param = 1
 
-        pos = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, position=True)
-        path_pos.append([pos[0], pos[2]])
+        paramm = path_curve.findParamFromLength(path_curve.length() * param)
         prev_param = param
 
-        tangent = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedTangent=True)
-        normal = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedNormal=True)
+        pos = cmds.pointOnCurve(path, parameter=paramm, position=True)
+        path_pos.append([pos[0], pos[2]])
+
+        tangent = cmds.pointOnCurve(path, parameter=paramm, normalizedTangent=True)
+        path_dir.append([tangent[0], tangent[2]])
+
+        normal = cmds.pointOnCurve(path, parameter=paramm, normalizedNormal=True)
 
         a_pos = [pos[0] + unit*normal[0], pos[1] + unit*normal[1], pos[2] + unit*normal[2]]
         b_pos = [pos[0] - unit*normal[0], pos[1] - unit*normal[1], pos[2] - unit*normal[2]]
@@ -162,35 +174,7 @@ def getPathPos(path_gaits):
             left_pos.append([a_pos[0], a_pos[2]])
             right_pos.append([b_pos[0], b_pos[2]])
 
-    return left_pos, path_pos, right_pos
-
-# Returns a list of WORLD SPACE [dir x, dir z] pairs
-def getPathDir(path_gaits):
-    path = getPathName()
-    path_dir = []
-    prev_param = 0
-    path_length = cmds.arclen(path)
-
-    for i in range(int(anim_info.anim_frames)):
-        if path_gaits[i] == 0:
-            point_dist = anim_info.delta_stand
-        if path_gaits[i] == 1:
-            point_dist = anim_info.delta_walk / path_length
-        if path_gaits[i] == 2:
-            point_dist = anim_info.delta_jog / path_length
-        if path_gaits[i] == 3:
-            point_dist = anim_info.delta_crouch / path_length
-
-        if i == 0:
-            param = 0
-        else:
-            param = prev_param + point_dist
-        prev_param = param
-
-        tangent = cmds.pointOnCurve(path, parameter=param, turnOnPercentage=True, normalizedTangent=True)
-        path_dir.append([tangent[0], tangent[2]])
-
-    return path_dir
+    return left_pos, path_pos, right_pos, path_dir
 
 # Returns a list of WORLD SPACE [r, c, l] heights of the left, central and right sample points of the path
 def getPathHeights(left_pos, path_pos, right_pos):
