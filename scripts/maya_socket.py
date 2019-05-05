@@ -67,7 +67,7 @@ def loco():
     # Buffer each response then execute buffer
     for response in responses:
         json_response = json.loads(response)
-        buffer(json_response)
+        doBuff(json_response)
 
 ########## GET requests ##########
 
@@ -256,7 +256,7 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
 
 ########## BUFF requests ##########
 
-def buffer(request):
+def doBuff(request):
     buffer.commands.append(request["JointPos"])
     # buffer.commands.append(request["JointXform"])
 
