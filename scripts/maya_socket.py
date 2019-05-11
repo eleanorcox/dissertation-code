@@ -242,13 +242,11 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
 
 def doBuff(request):
     buffer.commands.append(request["JointPos"])
-    # buffer.commands.append(request["JointXform"])
 
     # If last frame, execute buffer
     frame = request["Frame"]
     if frame == anim_info.anim_frames - 1:
         executeBuffer()
-        # executeXform()
 
 def executeBuffer():
     for i in range(len(buffer.commands)):
@@ -257,20 +255,6 @@ def executeBuffer():
         joint_pos = buffer.commands[i]
         moveJoints(joint_pos)
     setJointKeyframes()
-    buffer.clear()
-
-def executeXform():
-    num_joints = len(character.joints)
-    for i in range(len(buffer.commands)):
-        setJointKeyframes()
-        updateFrame()
-
-        # Formats the xforms into 4x4 arrays so they can be fed into OpenMaya.MMatrix easier
-        xforms = buffer.commands[i]
-        xforms = [xforms[i:i+4] for i in xrange(0, num_joints*16, 4)]
-        xforms = [xforms[i:i+4] for i in xrange(0, num_joints*4, 4)]
-
-        transform_joints(xforms)
     buffer.clear()
 
 def setJointKeyframes():

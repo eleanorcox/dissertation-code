@@ -273,6 +273,7 @@ struct Character {
 	glm::vec3 joint_velocities[JOINT_NUM];	// World space
 	glm::mat3 joint_rotations[JOINT_NUM];
 	glm::mat4 joint_global_anim_xform[JOINT_NUM];
+	glm::quat rot_quat[JOINT_NUM];
 
 	Character()
 	: phase(0) {}
@@ -339,6 +340,8 @@ static void reset() {
 		character->joint_positions[i]  = pos;
 		character->joint_velocities[i] = vel;
 		character->joint_rotations[i]  = rot;
+		character->joint_global_anim_xform[i] = glm::mat4();
+		character->rot_quat[i] = glm::toQuat(rot);
 	}
 
 	character->phase = 0.0;
@@ -620,6 +623,8 @@ void updateCharacter() {
 		character->joint_positions[i]  = glm::mix(character->joint_positions[i] + vel, pos, 0.5);
 	    character->joint_velocities[i] = vel;
 		character->joint_rotations[i]  = rot;
+		character->rot_quat[i]		   = glm::toQuat(rot);
+		// character->rot_quat[i]		   = glm::toQuat(glm::transpose(rot));
 
 		// As in pfnn-master. Unsure whether this is an appropriate transformation matrix - see notes.
 		character->joint_global_anim_xform[i] = glm::transpose(glm::mat4(
@@ -750,15 +755,6 @@ std::string getRelevantY(int frame) {
 		}
 	}
 
-	// std::array<float, Character::JOINT_NUM*9> joint_rot;
-	// for (int i = 0; i < Character::JOINT_NUM; i++) {
-	// 	for( int m = 0; m < 3; m++){
-	// 		for(int n = 0; n < 3; n++){
-	// 			joint_rot[i*9 + 3*m + n] = character->joint_rotations[i][m][n];
-	// 		}
-	// 	}
-	// }
-
 	// std::array<float, Character::JOINT_NUM*16> joint_xform;
 	// for (int i = 0; i < Character::JOINT_NUM; i++) {
 	// 	for( int m = 0; m < 4; m++){
@@ -768,11 +764,18 @@ std::string getRelevantY(int frame) {
 	// 	}
 	// }
 
+	std::array<float, Character::JOINT_NUM*4> joint_quat;
+	for (int i = 0; i < Character::JOINT_NUM; i++) {
+		for( int j = 0; j < 4; j++){
+			joint_quat[i*4 + j] = character->rot_quat[i][j];
+		}
+	}
+
 	json y_json;
 	y_json["JointPos"] = joint_pos;
 	y_json["Frame"] = frame;
-	// y_json["JointRot"] = joint_rot;
 	// y_json["JointXform"] = joint_xform;
+	y_json["RotQuat"] = joint_quat;
 	std::string y_json_str = y_json.dump();
 
 	return y_json_str;
