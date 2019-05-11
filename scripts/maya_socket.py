@@ -29,9 +29,9 @@ class Buffer():
     def clear(self):
         self.commands = []
 
-########## Server functions ##########
+########## Main function ##########
 
-def loco():
+def main():
     # Retrieve appropriate data from scene
     request = doGet()
 
@@ -462,8 +462,10 @@ def dotProduct2D(a, b):
     dot = a[0]*b[0] + a[1]*b[1]
     return dot
 
-character = Character()
-buffer = Buffer()
-anim_info = AnimInfo()
+########## Main ##########
 
-#pm.general.commandPort(name=":12345", cl=True)
+if __name__ == "__main__":
+    character = Character()
+    buffer = Buffer()
+    anim_info = AnimInfo()
+    main()

@@ -44,6 +44,13 @@ static glm::quat quat_exp(glm::vec3 l) {
   return q / sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
 }
 
+static glm::vec3 mix_directions(glm::vec3 x, glm::vec3 y, float a) {
+  glm::quat x_q = glm::angleAxis(atan2f(x.x, x.z), glm::vec3(0,1,0));
+  glm::quat y_q = glm::angleAxis(atan2f(y.x, y.z), glm::vec3(0,1,0));
+  glm::quat z_q = glm::slerp(x_q, y_q, a);
+  return z_q * glm::vec3(0,0,1);
+}
+
 /* Phase-Functioned Neural Network */
 
 struct PFNN {
@@ -741,6 +748,44 @@ void updateTrajectory(json json_msg, int frame) {
 		// trajectory->gait_crouch[Trajectory::LENGTH - 1] = 0.0;
 		// trajectory->gait_jump[Trajectory::LENGTH - 1] 	= 0.0;
 		trajectory->gait_bump[Trajectory::LENGTH - 1] 	= 1.0;
+	}
+
+	/* Blend path input with PFNN output predictions */
+
+	// Update Current Trajectory
+
+	float stand_amount = powf(1.0f-trajectory->gait_stand[Trajectory::LENGTH/2], 0.25f);
+
+	glm::vec3 trajectory_update = (trajectory->rotations[Trajectory::LENGTH/2] * glm::vec3(pfnn->Yp(0), 0, pfnn->Yp(1)));
+	trajectory->positions[Trajectory::LENGTH/2]  = trajectory->positions[Trajectory::LENGTH/2] + stand_amount * trajectory_update;
+	trajectory->directions[Trajectory::LENGTH/2] = glm::mat3(glm::rotate(stand_amount * -pfnn->Yp(2), glm::vec3(0,1,0))) * trajectory->directions[Trajectory::LENGTH/2];
+	trajectory->rotations[Trajectory::LENGTH/2] = glm::mat3(glm::rotate(atan2f(
+		trajectory->directions[Trajectory::LENGTH/2].x,
+		trajectory->directions[Trajectory::LENGTH/2].z), glm::vec3(0,1,0)));
+
+	// Update Future Trajectory
+	glm::vec3 predicted_pos[Trajectory::LENGTH/2-1];
+    glm::vec3 predicted_dir[Trajectory::LENGTH/2-1];
+    glm::mat3 predicted_rot[Trajectory::LENGTH/2-1];
+
+	for (int i = Trajectory::LENGTH/2+1; i < Trajectory::LENGTH; i++) {
+		int w = (Trajectory::LENGTH/2)/10;
+		float m = fmod(((float)i - (Trajectory::LENGTH/2)) / 10.0, 1.0);
+		predicted_pos[i].x = (1-m) * pfnn->Yp(8+(w*0)+(i/10)-w) + m * pfnn->Yp(8+(w*0)+(i/10)-w+1);
+		predicted_pos[i].z = (1-m) * pfnn->Yp(8+(w*1)+(i/10)-w) + m * pfnn->Yp(8+(w*1)+(i/10)-w+1);
+		predicted_dir[i].x = (1-m) * pfnn->Yp(8+(w*2)+(i/10)-w) + m * pfnn->Yp(8+(w*2)+(i/10)-w+1);
+		predicted_dir[i].z = (1-m) * pfnn->Yp(8+(w*3)+(i/10)-w) + m * pfnn->Yp(8+(w*3)+(i/10)-w+1);
+		predicted_pos[i]   = (trajectory->rotations[Trajectory::LENGTH/2] * predicted_pos[i]) + trajectory->positions[Trajectory::LENGTH/2];
+		predicted_dir[i]   = glm::normalize((trajectory->rotations[Trajectory::LENGTH/2] * predicted_dir[i]));
+		predicted_rot[i]   = glm::mat3(glm::rotate(atan2f(predicted_dir[i].x, predicted_dir[i].z), glm::vec3(0,1,0)));
+
+		// Blend with path input
+		trajectory->positions[i] = glm::mix(trajectory->positions[i], predicted_pos[i], 0.5);
+		trajectory->directions[i] = mix_directions(trajectory->directions[i], predicted_dir[i], 0.5);
+
+      	trajectory->rotations[i] = glm::mat3(glm::rotate(atan2f(
+			trajectory->directions[i].x,
+			trajectory->directions[i].z), glm::vec3(0,1,0)));
 	}
 }
 
