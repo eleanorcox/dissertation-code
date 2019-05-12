@@ -751,41 +751,40 @@ void updateTrajectory(json json_msg, int frame) {
 	}
 
 	/* Blend path input with PFNN output predictions */
-	
-	// Update Current Trajectory
-
-	float stand_amount = powf(1.0f-trajectory->gait_stand[Trajectory::LENGTH/2], 0.25f);
-
-	glm::vec3 trajectory_update = (trajectory->rotations[Trajectory::LENGTH/2] * glm::vec3(pfnn->Yp(0), 0, pfnn->Yp(1)));
-	trajectory->positions[Trajectory::LENGTH/2]  = trajectory->positions[Trajectory::LENGTH/2] + stand_amount * trajectory_update;
-	trajectory->directions[Trajectory::LENGTH/2] = glm::mat3(glm::rotate(stand_amount * -pfnn->Yp(2), glm::vec3(0,1,0))) * trajectory->directions[Trajectory::LENGTH/2];
-	trajectory->rotations[Trajectory::LENGTH/2] = glm::mat3(glm::rotate(atan2f(
-		trajectory->directions[Trajectory::LENGTH/2].x,
-		trajectory->directions[Trajectory::LENGTH/2].z), glm::vec3(0,1,0)));
-	
-	// Update Future Trajectory
-	glm::vec3 predicted_pos[Trajectory::LENGTH/2-1];
-	glm::vec3 predicted_dir[Trajectory::LENGTH/2-1];
-    	glm::mat3 predicted_rot[Trajectory::LENGTH/2-1];
-
-	for (int i = Trajectory::LENGTH/2+1; i < Trajectory::LENGTH; i++) {
-		int w = (Trajectory::LENGTH/2)/10;
-		float m = fmod(((float)i - (Trajectory::LENGTH/2)) / 10.0, 1.0);
-		predicted_pos[i - Trajectory::LENGTH/2 - 1].x = (1-m) * pfnn->Yp(8+(w*0)+(i/10)-w) + m * pfnn->Yp(8+(w*0)+(i/10)-w+1);
-		predicted_pos[i - Trajectory::LENGTH/2 - 1].z = (1-m) * pfnn->Yp(8+(w*1)+(i/10)-w) + m * pfnn->Yp(8+(w*1)+(i/10)-w+1);
-		predicted_dir[i - Trajectory::LENGTH/2 - 1].x = (1-m) * pfnn->Yp(8+(w*2)+(i/10)-w) + m * pfnn->Yp(8+(w*2)+(i/10)-w+1);
-		predicted_dir[i - Trajectory::LENGTH/2 - 1].z = (1-m) * pfnn->Yp(8+(w*3)+(i/10)-w) + m * pfnn->Yp(8+(w*3)+(i/10)-w+1);
-		predicted_pos[i - Trajectory::LENGTH/2 - 1]   = (trajectory->rotations[Trajectory::LENGTH/2] * predicted_pos[i - Trajectory::LENGTH/2 - 1]) + trajectory->positions[Trajectory::LENGTH/2];
-		predicted_dir[i - Trajectory::LENGTH/2 - 1]   = glm::normalize((trajectory->rotations[Trajectory::LENGTH/2] * predicted_dir[i - Trajectory::LENGTH/2 - 1]));
-		predicted_rot[i - Trajectory::LENGTH/2 - 1]   = glm::mat3(glm::rotate(atan2f(predicted_dir[i - Trajectory::LENGTH/2 - 1].x, predicted_dir[i - Trajectory::LENGTH/2 - 1].z), glm::vec3(0,1,0)));
-		
-		// Blend with path input
-		trajectory->positions[i] = glm::mix(trajectory->positions[i], predicted_pos[i - Trajectory::LENGTH/2 - 1], 0.85);
-		trajectory->directions[i] = mix_directions(trajectory->directions[i], predicted_dir[i - Trajectory::LENGTH/2 - 1], 0.85);
-      		trajectory->rotations[i] = glm::mat3(glm::rotate(atan2f(
-			trajectory->directions[i].x,
-			trajectory->directions[i].z), glm::vec3(0,1,0)));
-	}
+	// // Update Current Trajectory
+	//
+	// float stand_amount = powf(1.0f-trajectory->gait_stand[Trajectory::LENGTH/2], 0.25f);
+	//
+	// glm::vec3 trajectory_update = (trajectory->rotations[Trajectory::LENGTH/2] * glm::vec3(pfnn->Yp(0), 0, pfnn->Yp(1)));
+	// trajectory->positions[Trajectory::LENGTH/2]  = trajectory->positions[Trajectory::LENGTH/2] + stand_amount * trajectory_update;
+	// trajectory->directions[Trajectory::LENGTH/2] = glm::mat3(glm::rotate(stand_amount * -pfnn->Yp(2), glm::vec3(0,1,0))) * trajectory->directions[Trajectory::LENGTH/2];
+	// trajectory->rotations[Trajectory::LENGTH/2] = glm::mat3(glm::rotate(atan2f(
+	// 	trajectory->directions[Trajectory::LENGTH/2].x,
+	// 	trajectory->directions[Trajectory::LENGTH/2].z), glm::vec3(0,1,0)));
+	//
+	// // Update Future Trajectory
+	// glm::vec3 predicted_pos[Trajectory::LENGTH/2-1];
+	// glm::vec3 predicted_dir[Trajectory::LENGTH/2-1];
+    // glm::mat3 predicted_rot[Trajectory::LENGTH/2-1];
+	//
+	// for (int i = Trajectory::LENGTH/2+1; i < Trajectory::LENGTH; i++) {
+	// 	int w = (Trajectory::LENGTH/2)/10;
+	// 	float m = fmod(((float)i - (Trajectory::LENGTH/2)) / 10.0, 1.0);
+	// 	predicted_pos[i - Trajectory::LENGTH/2-1].x = (1-m) * pfnn->Yp(8+(w*0)+(i/10)-w) + m * pfnn->Yp(8+(w*0)+(i/10)-w+1);
+	// 	predicted_pos[i - Trajectory::LENGTH/2-1].z = (1-m) * pfnn->Yp(8+(w*1)+(i/10)-w) + m * pfnn->Yp(8+(w*1)+(i/10)-w+1);
+	// 	predicted_dir[i - Trajectory::LENGTH/2-1].x = (1-m) * pfnn->Yp(8+(w*2)+(i/10)-w) + m * pfnn->Yp(8+(w*2)+(i/10)-w+1);
+	// 	predicted_dir[i - Trajectory::LENGTH/2-1].z = (1-m) * pfnn->Yp(8+(w*3)+(i/10)-w) + m * pfnn->Yp(8+(w*3)+(i/10)-w+1);
+	// 	predicted_pos[i - Trajectory::LENGTH/2-1]   = (trajectory->rotations[Trajectory::LENGTH/2] * predicted_pos[i - Trajectory::LENGTH/2-1]) + trajectory->positions[Trajectory::LENGTH/2];
+	// 	predicted_dir[i - Trajectory::LENGTH/2-1]   = glm::normalize((trajectory->rotations[Trajectory::LENGTH/2] * predicted_dir[i - Trajectory::LENGTH/2-1]));
+	// 	predicted_rot[i - Trajectory::LENGTH/2-1]   = glm::mat3(glm::rotate(atan2f(predicted_dir[i - Trajectory::LENGTH/2-1].x, predicted_dir[i - Trajectory::LENGTH/2-1].z), glm::vec3(0,1,0)));
+	//
+	// 	// Blend with path input
+	// 	trajectory->positions[i] = glm::mix(trajectory->positions[i], predicted_pos[i - Trajectory::LENGTH/2-1], 0.85);
+	// 	trajectory->directions[i] = mix_directions(trajectory->directions[i], predicted_dir[i - Trajectory::LENGTH/2-1], 0.85);
+    //   	trajectory->rotations[i] = glm::mat3(glm::rotate(atan2f(
+	// 		trajectory->directions[i].x,
+	// 		trajectory->directions[i].z), glm::vec3(0,1,0)));
+	// }
 }
 
 /* Get Relevant Info from Yp to send to Maya and JSONify */
@@ -852,28 +851,24 @@ void processAnim(int sock) {
 	initialiseCharacter(json_msg);
 	initialiseTrajectory(json_msg);
 
-	std::cout << json_msg["AnimFrames"] << "\n";
-
 	for(int f = 0; f < json_msg["AnimFrames"]; f++){
-		std::cout << f << " ";
 		/* Update Xp based on character and trajectory */
 		inputXp();
-		std::cout << "a ";
 
 		/* Predict next frame */
 		pfnn->predict(character->phase);
-		std::cout << "b ";
+
 		/* Update character and trajectory */
 		updateCharacter();
 		updateTrajectory(json_msg, f);
-		std::cout << "c ";
+
 		/* Extract relevant Y info, JSONify */
 		std::string y_out = getRelevantY(f);
-		std::cout << "d ";
+
 		/* Send Y info */
 		n = send(sock, y_out.c_str(), y_out.length(),0);
 		if (n < 0) error("ERROR writing to socket");
-		std::cout << "e ";
+
 	}
 
 	std::cout << "Request processed.\nSending response... ";
