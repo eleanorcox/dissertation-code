@@ -245,7 +245,6 @@ def doBuff(request):
     # buffer.commands.append(request["JointXform"])
     # buffer.commands.append(request["RotQuat"])
 
-
     # If last frame, execute buffer
     frame = request["Frame"]
     if frame == anim_info.anim_frames - 1:
@@ -280,21 +279,17 @@ def executeXform():
 def executeQuat():
     num_joints = len(character.joints)
     for i in range(len(buffer.commands)):
-        # setJointKeyframes()
-        # setJointKeyframesXform()
-        # setJointKeyframesRot()
+        setJointKeyframesRot()
         updateFrame()
 
         xforms = buffer.commands[i]
         xforms = [xforms[i:i+4] for i in xrange(0, num_joints*4, 4)]
 
-        quatttt(xforms)
-    # setJointKeyframes()
-    # setJointKeyframesXform()
-    # setJointKeyframesRot()
+        quat(xforms)
+    setJointKeyframesRot()
     buffer.clear()
 
-def quatttt(xforms):
+def quat(xforms):
     for i in range(len(character.joints)):
         # space = OpenMaya.MSpace.kWorld
         space = OpenMaya.MSpace.kObject
@@ -311,7 +306,6 @@ def quatttt(xforms):
         mFnTransform.setRotation(quat, space)
         # mFnTransform.rotateBy(quat, space)
 
-
 def setJointKeyframes():
     for joint in character.joints:
         cmds.setKeyframe(joint, attribute="translate")
@@ -320,11 +314,11 @@ def setJointKeyframesXform():
     for joint in character.joints:
         if joint == character.root:
             cmds.setKeyframe(joint, attribute="translate")
-        cmds.setKeyframe(joint, attribute="rotation")
+        cmds.setKeyframe(joint, attribute="rotate")
 
 def setJointKeyframesRot():
     for joint in character.joints:
-        cmds.setKeyframe(joint, attribute="rotation")
+        cmds.setKeyframe(joint, attribute="rotate")
 
 def updateFrame():
     now = cmds.currentTime(query=True)
@@ -335,21 +329,7 @@ def moveJoints(joint_pos):
         x_pos = joint_pos[i*3+0]
         y_pos = joint_pos[i*3+1]
         z_pos = joint_pos[i*3+2]
-        # check whether at a foot
-        # if at foot check intersection
-        # if no intersection proceed as normal
-        # if intersection set y_pos to terr height + value
         cmds.move(x_pos, y_pos, z_pos, character.joints[i], worldSpace=True, preserveChildPosition=True)
-
-# def checkIntersection(x, y, z):
-#     l = [[x,z]]
-#     pp = getPathHeights(l, l, l)
-#     terrain_height = pp[0]
-#     foot_height = y
-#     if foot_height > terrain_height:
-#         return y
-#     else:
-#         return terrain_height + 3
 
 def transform_joints(xforms):
     for i in range(len(character.joints)):
