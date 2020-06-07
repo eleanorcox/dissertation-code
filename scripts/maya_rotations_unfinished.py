@@ -241,16 +241,16 @@ def formatGetJson(path_pos, path_dir, path_heights, joint_pos, joint_vel, path_g
 ########## BUFF requests ##########
 
 def doBuff(request):
-    buffer.commands.append(request["JointPos"])
+    # buffer.commands.append(request["JointPos"])
     # buffer.commands.append(request["JointXform"])
-    # buffer.commands.append(request["RotQuat"])
+    buffer.commands.append(request["RotQuat"])
 
     # If last frame, execute buffer
     frame = request["Frame"]
     if frame == anim_info.anim_frames - 1:
-        executeBuffer()
+        # executeBuffer()
         # executeXform()
-        # executeQuat()
+        executeQuat()
 
 def executeBuffer():
     for i in range(len(buffer.commands)):
